@@ -1,0 +1,9 @@
+{
+    "name": "xielei/swoole-worker",
+    "license": "Apache-2.0",
+    "autoload": {
+        "psr-4": {
+            "Xielei\\Swoole\\": "src/"
+        }
+    }
+}
