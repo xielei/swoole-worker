@@ -30,7 +30,7 @@ class SendToAll implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
     {
         $data = self::decode($buffer);
-        foreach ($gateway->ports[$gateway->worker_id]->connections as $fd) {
+        foreach ($gateway->fd_list as $fd => $info) {
             if (!in_array($fd, $data['without_fd_list'])) {
                 $gateway->sendToClient($fd, $data['message']);
             }
