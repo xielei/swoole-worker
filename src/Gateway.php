@@ -36,20 +36,8 @@ class Gateway extends SwooleServer
 
     private $cmd_list = [];
 
-    private $has_websocket = false;
-
     public function start()
     {
-        $this->on('Start', function () {
-            for ($i = 0; $i < $this->setting['worker_num']; $i++) {
-                $port = $this->ports[$i];
-                if ($port->setting['open_websocket_protocol']) {
-                    $this->has_websocket = true;
-                    break;
-                }
-            }
-        });
-
         // tcp链接
         $this->on('connect', function ($server, $fd) {
             echo "DEBUG 客户链接 fd:{$fd}\n";
@@ -58,6 +46,7 @@ class Gateway extends SwooleServer
                 'session' => null,
                 'group_list' => [],
                 'tag_list' => [],
+                'ws' => isset($this->getClientInfo($fd)['websocket_status']),
             ];
             $this->sendToWorker(Protocol::CLIENT_CONNECT, $fd);
         });
@@ -72,15 +61,15 @@ class Gateway extends SwooleServer
 
         // websocket链接
         $this->on('open', function ($server, $request) {
-            echo "DEBUG Websocket链接 fd:{$request->fd} request:{$request->getData()}\n";
+            echo "DEBUG Websocket链接 fd:{$request->fd}\n";
             $this->sendToWorker(Protocol::CLIENT_WEBSOCKET_CONNECT, $request->fd, [
                 'global' => [
-                    'header' => $request->header(),
-                    'server' => $request->server(),
-                    'get' => $request->get(),
-                    'post' => $request->post(),
-                    'cookie' => $request->cookie(),
-                    'files' => $request->files(),
+                    'header' => $request->header,
+                    'server' => $request->server,
+                    'get' => $request->get,
+                    'post' => $request->post,
+                    'cookie' => $request->cookie,
+                    'files' => $request->files,
                 ],
             ]);
         });
@@ -186,14 +175,8 @@ class Gateway extends SwooleServer
 
     public function sendToClient(int $fd, string $message)
     {
-        if ($this->has_websocket) {
-            if ($info = $this->getClientInfo($fd)) {
-                if (isset($info['websocket_status']) && $info['websocket_status']) {
-                    $this->send($fd, WebSocketServer::pack($message));
-                } else {
-                    $this->send($fd, $message);
-                }
-            }
+        if (isset($this->fd_list[$fd]['ws']) && $this->fd_list[$fd]['ws']) {
+            $this->send($fd, WebSocketServer::pack($message));
         } else {
             $this->send($fd, $message);
         }

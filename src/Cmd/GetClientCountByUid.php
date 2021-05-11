@@ -28,7 +28,7 @@ class GetClientCountByUid implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
     {
         $data = self::decode($buffer);
-        $buffer = pack('N', count($gateway->uid_list[$data['uid']]));
+        $buffer = pack('N', count($gateway->uid_list[$data['uid']] ?? []));
         $conn->send(pack('N', 4 + strlen($buffer)) . $buffer);
         return true;
     }

@@ -28,7 +28,7 @@ class GetClientCountByGroup implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
     {
         $data = self::decode($buffer);
-        $buffer = pack('N', count($gateway->group_list[$data['group']]));
+        $buffer = pack('N', count($gateway->group_list[$data['group']] ?? []));
         $conn->send(pack('N', 4 + strlen($buffer)) . $buffer);
         return true;
     }
