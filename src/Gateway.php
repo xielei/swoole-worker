@@ -76,7 +76,7 @@ class Gateway extends SwooleServer
 
         // websocket消息
         $this->on('message', function ($server, $frame) {
-            echo "DEBUG Websocket消息 fd:{$frame->fd} data:{$$frame->data}\n";
+            echo "DEBUG Websocket消息 fd:{$frame->fd} data:{$frame->data}\n";
             switch ($frame->opcode) {
                 case WEBSOCKET_OPCODE_TEXT:
                 case WEBSOCKET_OPCODE_BINARY:

@@ -13,18 +13,18 @@ class SendToGroup implements CmdInterface
         return 22;
     }
 
-    public static function encode(string $group, string $message, array $without_fd_list): string
+    public static function encode(string $group, string $message, array $without_fd_list = []): string
     {
-        return pack('CCC', SELF::getCommandCode(), strlen($group), strlen($message)) . $group . $message . pack('N*', $without_fd_list);
+        return pack('CCn', SELF::getCommandCode(), strlen($group), count($without_fd_list)) . $group . ($without_fd_list ? pack('N*', $without_fd_list) : '') . $message;
     }
 
     public static function decode(string $buffer): array
     {
-        $tmp = unpack('Cgroup_len/Cmessage_len', $buffer);
+        $tmp = unpack('Cgroup_len/ncount', $buffer);
         return [
-            'group' => substr($buffer, 2, $tmp['group_len']),
-            'message' => substr($buffer, 2 + $tmp['group_len'], $tmp['message_len']),
-            'without_fd_list' => unpack('N*', substr($buffer, 2 + $tmp['group_len'] + $tmp['message_len'])),
+            'group' => substr($buffer, 3, $tmp['group_len']),
+            'without_fd_list' => unpack('N*', substr($buffer, 3 + $tmp['group_len'], $tmp['count'] * 4)),
+            'message' => substr($buffer, 3 + $tmp['group_len'] + $tmp['count'] * 4),
         ];
     }
 

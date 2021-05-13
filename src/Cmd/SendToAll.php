@@ -13,17 +13,17 @@ class SendToAll implements CmdInterface
         return 20;
     }
 
-    public static function encode(string $message, array $without_fd_list): string
+    public static function encode(string $message, array $without_fd_list = []): string
     {
-        return pack('CC', SELF::getCommandCode(), strlen($message)) . $message . pack('N*', $without_fd_list);
+        return pack('Cn', SELF::getCommandCode(), count($without_fd_list)) . ($without_fd_list ? pack('N*', $without_fd_list) : '') . $message;
     }
 
     public static function decode(string $buffer): array
     {
-        $tmp = unpack('Cmessage_len', $buffer);
+        $tmp = unpack('ncount', $buffer);
         return [
-            'message' => substr($buffer, 1, $tmp['message_len']),
-            'without_fd_list' => unpack('N*', substr($buffer, 1 + $tmp['message_len'])),
+            'without_fd_list' => unpack('N*', substr($buffer, 2, $tmp['count'] * 4)),
+            'message' => substr($buffer, 2 + $tmp['count'] * 4),
         ];
     }
 
