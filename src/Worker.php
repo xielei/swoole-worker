@@ -177,7 +177,7 @@ class Worker extends Pool
                     break;
 
                 case Protocol::CLIENT_CLOSE:
-                    call_user_func([$this->event, 'onClose'], $client);
+                    call_user_func([$this->event, 'onClose'], $client, $data['bind']);
                     break;
 
                 default:

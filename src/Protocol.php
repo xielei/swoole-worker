@@ -88,7 +88,7 @@ class Protocol
                     'NN',
                     $data['fd'],
                     strlen($session_string)
-                ) . $session_string;
+                ) . $session_string . serialize($data['bind']);
                 break;
 
             default:
@@ -152,6 +152,7 @@ class Protocol
             case self::CLIENT_CLOSE:
                 $data += unpack('Nfd/Nsession_len', $load);
                 $data['session'] = unserialize(substr($load, 8, $data['session_len']));
+                $data['bind'] = unserialize(substr($load, 8 + $data['session_len']));
                 unset($data['session_len']);
                 break;
 

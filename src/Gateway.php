@@ -93,7 +93,9 @@ class Gateway extends SwooleServer
         // 断开链接
         $this->on('close', function ($server, $fd) {
             echo "DEBUG 客户关闭 fd:{$fd}\n";
-            $this->sendToWorker(Protocol::CLIENT_CLOSE, $fd);
+            $this->sendToWorker(Protocol::CLIENT_CLOSE, $fd, [
+                'bind' => $this->fd_list[$fd],
+            ]);
             // 删除用户绑定
             if ($bind_uid = $this->fd_list[$fd]['uid']) {
                 unset($this->uid_list[$bind_uid][$fd]);
@@ -239,9 +241,9 @@ class Gateway extends SwooleServer
             });
         };
         $client->onClose = function () use ($client) {
-            echo "DEBUG close..9idf\n";
+            echo "DEBUG close..\n";
             Timer::after(1000, function () use ($client) {
-                echo "DEBUG close..90000\n";
+                echo "DEBUG 重新链接...\n";
                 $client->connect();
             });
         };

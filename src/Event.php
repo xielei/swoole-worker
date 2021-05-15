@@ -51,7 +51,7 @@ class Event
      * @param string $client
      * @return void
      */
-    public function onClose(string $client)
+    public function onClose(string $client, array $bind)
     {}
 
     /**
