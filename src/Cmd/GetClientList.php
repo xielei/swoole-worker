@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
@@ -15,7 +17,7 @@ class GetClientList implements CmdInterface
 
     public static function encode(int $limit = 100, int $prev_fd = 0): string
     {
-        return pack('CNN', SELF::getCommandCode(), $limit, $prev_fd);
+        return pack('CNN', self::getCommandCode(), $limit, $prev_fd);
     }
 
     public static function decode(string $buffer): array

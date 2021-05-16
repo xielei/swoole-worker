@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
@@ -15,14 +17,14 @@ class GetGroupList implements CmdInterface
 
     public static function encode(): string
     {
-        return pack('C', SELF::getCommandCode());
+        return pack('C', self::getCommandCode());
     }
 
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
     {
         $buffer = '';
         foreach (array_keys($gateway->group_list) as $group) {
-            $buffer .= pack('C', strlen($group)) . $group;
+            $buffer .= pack('C', strlen((string)$group)) . $group;
         }
         $conn->send(pack('N', 4 + strlen($buffer)) . $buffer);
         return true;

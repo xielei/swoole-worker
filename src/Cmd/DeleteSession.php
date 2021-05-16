@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
@@ -15,7 +17,7 @@ class DeleteSession implements CmdInterface
 
     public static function encode(int $fd): string
     {
-        return pack('CN', SELF::getCommandCode(), $fd);
+        return pack('CN', self::getCommandCode(), $fd);
     }
 
     public static function decode(string $buffer): array

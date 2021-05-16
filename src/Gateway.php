@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole;
 
 use Exception;

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole;
 
 use Swoole\Process\Pool;
@@ -14,7 +16,8 @@ class Event
      * @return void
      */
     public function onWorkerStart(Pool $pool, int $worker_id)
-    {}
+    {
+    }
 
     /**
      * 客户端连接
@@ -23,7 +26,8 @@ class Event
      * @return void
      */
     public function onConnect(string $client)
-    {}
+    {
+    }
 
     /**
      * websocket客户端链接
@@ -33,7 +37,8 @@ class Event
      * @return void
      */
     public function onWebsocketConnect(string $client, array $global)
-    {}
+    {
+    }
 
     /**
      * 收到客户端消息
@@ -43,7 +48,8 @@ class Event
      * @return void
      */
     public function onMessage(string $client, string $data)
-    {}
+    {
+    }
 
     /**
      * 客户端关闭
@@ -52,7 +58,8 @@ class Event
      * @return void
      */
     public function onClose(string $client, array $bind)
-    {}
+    {
+    }
 
     /**
      * 工作进程停止
@@ -62,5 +69,6 @@ class Event
      * @return void
      */
     public function onWorkerStop(Pool $pool, int $worker_id)
-    {}
+    {
+    }
 }

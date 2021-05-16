@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
@@ -15,7 +17,7 @@ class SendToClient implements CmdInterface
 
     public static function encode(int $fd, string $message): string
     {
-        return pack('CN', SELF::getCommandCode(), $fd) . $message;
+        return pack('CN', self::getCommandCode(), $fd) . $message;
     }
 
     public static function decode(string $buffer): array

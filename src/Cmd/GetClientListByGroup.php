@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
@@ -15,7 +17,7 @@ class GetClientListByGroup implements CmdInterface
 
     public static function encode(string $group): string
     {
-        return pack('C', SELF::getCommandCode()) . $group;
+        return pack('C', self::getCommandCode()) . $group;
     }
 
     public static function decode(string $buffer): array

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
@@ -15,7 +17,7 @@ class SendToGroup implements CmdInterface
 
     public static function encode(string $group, string $message, array $without_fd_list = []): string
     {
-        return pack('CCn', SELF::getCommandCode(), strlen($group), count($without_fd_list)) . $group . ($without_fd_list ? pack('N*', $without_fd_list) : '') . $message;
+        return pack('CCn', self::getCommandCode(), strlen($group), count($without_fd_list)) . $group . ($without_fd_list ? pack('N*', $without_fd_list) : '') . $message;
     }
 
     public static function decode(string $buffer): array

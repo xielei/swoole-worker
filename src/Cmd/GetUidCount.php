@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
@@ -15,7 +17,7 @@ class GetUidCount implements CmdInterface
 
     public static function encode(bool $read_uid_list = true): string
     {
-        return pack('CC', SELF::getCommandCode(), $read_uid_list);
+        return pack('CC', self::getCommandCode(), $read_uid_list);
     }
 
     public static function decode($buffer)
@@ -40,7 +42,7 @@ class GetUidCount implements CmdInterface
 
         $buffer = '';
         foreach (array_keys($uid_list) as $uid) {
-            $buffer .= pack('C', strlen($uid)) . $uid;
+            $buffer .= pack('C', strlen((string)$uid)) . $uid;
         }
 
         $conn->send(pack('NN', 8 + strlen($buffer), $count) . $buffer);

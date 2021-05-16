@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
@@ -15,7 +17,7 @@ class UpdateSession implements CmdInterface
 
     public static function encode(int $fd, array $session): string
     {
-        return pack('CN', SELF::getCommandCode(), $fd) . serialize($session);
+        return pack('CN', self::getCommandCode(), $fd) . serialize($session);
     }
 
     public static function decode(string $buffer): array

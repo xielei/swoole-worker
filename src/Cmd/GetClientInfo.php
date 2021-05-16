@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
@@ -16,7 +18,7 @@ class GetClientInfo implements CmdInterface
 
     public static function encode(int $fd = 0, int $type = 0): string
     {
-        return pack('CNC', SELF::getCommandCode(), $fd, $type);
+        return pack('CNC', self::getCommandCode(), $fd, $type);
     }
 
     public static function decode(string $buffer): array
@@ -45,7 +47,7 @@ class GetClientInfo implements CmdInterface
         $load .= pack('N', $fd);
         if (Protocol::CLIENT_INFO_UID & $type) {
             $uid = $gateway->fd_list[$fd]['uid'];
-            $load .= pack('n', strlen($gateway->fd_list[$fd]['uid'])) . $uid;
+            $load .= pack('n', strlen((string)$uid)) . $uid;
         }
         if (Protocol::CLIENT_INFO_SESSION & $type) {
             $session = serialize($gateway->fd_list[$fd]['session']);
@@ -54,13 +56,13 @@ class GetClientInfo implements CmdInterface
         if (Protocol::CLIENT_INFO_GROUP_LIST & $type) {
             $load .= pack('n', count($gateway->fd_list[$fd]['group_list']));
             foreach ($gateway->fd_list[$fd]['group_list'] as $value) {
-                $load .= pack('n', strlen($value)) . $value;
+                $load .= pack('n', strlen((string)$value)) . $value;
             }
         }
         if (Protocol::CLIENT_INFO_TAG_LIST & $type) {
             $load .= pack('n', count($gateway->fd_list[$fd]['tag_list']));
             foreach ($gateway->fd_list[$fd]['tag_list'] as $value) {
-                $load .= pack('n', strlen($value)) . $value;
+                $load .= pack('n', strlen((string)$value)) . $value;
             }
         }
         if (Protocol::CLIENT_INFO_REMOTE_IP & $type) {

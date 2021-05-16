@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Xielei\Swoole\Gateway;
 
 require_once __DIR__ . '/../vendor/autoload.php';

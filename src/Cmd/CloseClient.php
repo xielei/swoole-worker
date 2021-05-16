@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
@@ -15,7 +17,7 @@ class CloseClient implements CmdInterface
 
     public static function encode(int $fd, bool $force = false): string
     {
-        return pack('CNC', SELF::getCommandCode(), $fd, $force);
+        return pack('CNC', self::getCommandCode(), $fd, $force);
     }
 
     public static function decode(string $buffer): array

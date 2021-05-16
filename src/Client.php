@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Xielei\Swoole;
 
 use Swoole\Coroutine;
@@ -30,7 +33,6 @@ class Client
             'package_body_offset' => 0,
         ]);
         $this->conn = $conn;
-
     }
 
     public function start()

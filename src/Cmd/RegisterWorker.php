@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\ConnectionPool;
@@ -16,7 +18,7 @@ class RegisterWorker implements CmdInterface
 
     public static function encode(): string
     {
-        return pack('C', SELF::getCommandCode());
+        return pack('C', self::getCommandCode());
     }
 
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
