@@ -9,14 +9,14 @@ use Swoole\Coroutine\Server\Connection;
 interface CmdInterface
 {
     /**
-     * 返回命令码 一个字节
+     * get command code
      *
      * @return integer
      */
     public static function getCommandCode(): int;
 
     /**
-     * 执行命令
+     * execute command
      *
      * @param Gateway $gateway
      * @param Connection $conn

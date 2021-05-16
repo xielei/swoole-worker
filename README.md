@@ -3,12 +3,12 @@
 SwooleWorker is a distributed long connection development framework based on Swoole4.
 
 [【Github】](http://www.github.com/xielei/swoole-worker)
-[【HomePage】](http://www.ebcms.com/xielei/swoole-worker)
+[【HomePage】](http://www.github.com/xielei/swoole-worker)
 
 ## Manual
 
 [【ENGLISH】](docs/en)
-[【简体中文】](docs/zh-CN/)
+[【简体中文】](docs/zh-CN)
 
 ## Usage scenarios
 

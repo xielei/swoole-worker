@@ -59,12 +59,6 @@ class GetClientInfo implements CmdInterface
                 $load .= pack('n', strlen((string)$value)) . $value;
             }
         }
-        if (Protocol::CLIENT_INFO_TAG_LIST & $type) {
-            $load .= pack('n', count($gateway->fd_list[$fd]['tag_list']));
-            foreach ($gateway->fd_list[$fd]['tag_list'] as $value) {
-                $load .= pack('n', strlen((string)$value)) . $value;
-            }
-        }
         if (Protocol::CLIENT_INFO_REMOTE_IP & $type) {
             $load .= pack('N', ip2long($gateway->getClientInfo($fd)['remote_ip']));
         }
@@ -106,18 +100,6 @@ class GetClientInfo implements CmdInterface
                 $buffer = substr($buffer, $q['len']);
             }
             $res['group_list'] = $group_list;
-        }
-        if ($type & Protocol::CLIENT_INFO_TAG_LIST) {
-            $t = unpack('ncount', $buffer);
-            $buffer = substr($buffer, 2);
-            $tag_list = [];
-            for ($i = 0; $i < $t['count']; $i++) {
-                $q = unpack('nlen', $buffer);
-                $buffer = substr($buffer, 2);
-                $tag_list[] = substr($buffer, 0, $q['len']);
-                $buffer = substr($buffer, $q['len']);
-            }
-            $res['tag_list'] = $tag_list;
         }
         if ($type & Protocol::CLIENT_INFO_REMOTE_IP) {
             $res += unpack('Nremote_ip', $buffer);

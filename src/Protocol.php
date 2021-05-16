@@ -8,25 +8,18 @@ class Protocol
 {
     const PING = 0;
 
-    // gateway链接register
     const GATEWAY_CONNECT = 1;
 
-    // worker链接register
     const WORKER_CONNECT = 2;
 
-    // 给worker广播gateway内部连接地址
     const BROADCAST_ADDRESS_LIST = 3;
 
-    // 发给worker，gateway有一个新的连接
     const CLIENT_CONNECT = 10;
 
-    // 当websocket握手时触发，只有websocket协议支持此命令
     const CLIENT_WEBSOCKET_CONNECT = 11;
 
-    // 发给worker的，客户端有消息
     const CLIENT_MESSAGE = 12;
 
-    // 发给worker上的关闭链接事件
     const CLIENT_CLOSE = 13;
 
     const CLIENT_INFO_REMOTE_IP = 0b00000001;
@@ -34,8 +27,7 @@ class Protocol
     const CLIENT_INFO_UID = 0b00000100;
     const CLIENT_INFO_SESSION = 0b00001000;
     const CLIENT_INFO_GROUP_LIST = 0b00010000;
-    const CLIENT_INFO_TAG_LIST = 0b00100000;
-    const CLIENT_INFO_SYSTEM = 0b10000000;
+    const CLIENT_INFO_SYSTEM = 0b00100000;
 
     public static function encode($cmd, array $data = []): string
     {

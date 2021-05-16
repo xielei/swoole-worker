@@ -31,7 +31,6 @@ class Worker extends Pool
 
     public function start()
     {
-
         $this->on('WorkerStart', function (Pool $pool, $worker_id) {
             Api::$address_list = &$this->gateway_address_list;
             $this->connectToRegister();
@@ -53,11 +52,9 @@ class Worker extends Pool
     {
         $client = new Client($this->register_host, $this->register_port);
         $client->onConnect = function () use ($client) {
-            // echo "DEBUG register 连接成功\n";
             $client->send(Protocol::encode(Protocol::WORKER_CONNECT, [
                 'register_secret_key' => $this->register_secret_key,
             ]));
-            // echo "DEBUG register 注册完成\n";
 
             $ping_buffer = Protocol::encode(Protocol::PING);
             Timer::tick(30000, function () use ($client, $ping_buffer) {
@@ -70,12 +67,9 @@ class Worker extends Pool
                 $data = Protocol::decode($buffer);
             } catch (Throwable $th) {
                 $hex_buffer = bin2hex($buffer);
-                echo "DEBUG 解码失败 buffer:{$hex_buffer}\n";
+                echo "Protocol::decode failuer! buffer:{$hex_buffer}\n";
                 return;
             }
-
-            // $str = json_encode($data);
-            // echo "DEBUG 收到register消息 解析成功 data:{$str}\n";
 
             switch ($data['cmd']) {
                 case Protocol::BROADCAST_ADDRESS_LIST:
@@ -92,11 +86,6 @@ class Worker extends Pool
                 $client->connect();
             });
         };
-        $client->onError = function ($errCode) use ($client) {
-            // if ($errCode !== SOCKET_ETIMEDOUT) {
-            //     $client->close(true);
-            // }
-        };
         $client->start();
     }
 
@@ -107,9 +96,7 @@ class Worker extends Pool
             $this->gateway_pool_list[$key] = new ConnectionPool(function () use ($address) {
                 $client = new Client($address['lan_host'], $address['lan_port']);
                 $client->onConnect = function () use ($client) {
-                    // echo "DEBUG worker 连接成功\n";
                     $client->send(pack('NC', 5, RegisterWorker::getCommandCode()));
-                    // echo "DEBUG worker 注册完成\n";
 
                     $ping_buffer = pack('NC', 5, Ping::getCommandCode());
                     Timer::tick(30000, function () use ($client, $ping_buffer) {
@@ -120,17 +107,9 @@ class Worker extends Pool
                     $this->onGatewayMessage($buffer, $address);
                 };
                 $client->onClose = function () use ($client) {
-                    // echo "DEBUG close..9idf\n";
                     Timer::after(1000, function () use ($client) {
-                        // echo "DEBUG close..90000\n";
                         $client->connect();
                     });
-                };
-                $client->onError = function ($errCode) use ($client) {
-                    // if ($errCode !== SOCKET_ETIMEDOUT) {
-                    //     echo "DEBUG onError..9idf\n";
-                    //     $client->close(true);
-                    // }
                 };
                 $client->start();
                 return $client;
@@ -163,7 +142,7 @@ class Worker extends Pool
             $data = Protocol::decode($buffer);
         } catch (Throwable $th) {
             $hex = bin2hex($buffer);
-            echo "DEBUG 收到gateway消息 解析失败 buffer:{$hex}\n";
+            echo "Protocol::decode failure! buffer:{$hex}\n";
             return;
         }
 
@@ -193,7 +172,7 @@ class Worker extends Pool
                 break;
 
             default:
-                echo "DEBUG 未知执行方法 cmd:{$data['cmd']}\n";
+                echo "Undefined CMD! cmdcode:{$data['cmd']}\n";
                 break;
         }
     }

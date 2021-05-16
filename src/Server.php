@@ -29,19 +29,17 @@ class Server
             'package_body_offset' => 0,
 
             'open_tcp_keepalive' => true,
-            'tcp_keepidle' => 1, //4s没有数据传输就进行检测
-            'tcp_keepinterval' => 1, //1s探测一次
-            'tcp_keepcount' => 5, //探测的次数，超过5次后还没回包close此连接
+            'tcp_keepidle' => 1,
+            'tcp_keepinterval' => 1,
+            'tcp_keepcount' => 5,
 
-            'heartbeat_idle_time' => 5, // 表示一个连接如果60秒内未向服务器发送任何数据，此连接将被强制关闭
-            'heartbeat_check_interval' => 1, // 表示每6秒遍历一次
+            'heartbeat_idle_time' => 5,
+            'heartbeat_check_interval' => 1,
         ]);
 
-        //接收到新的连接请求 并自动创建一个协程
         $server->handle(function (Connection $conn) {
             $this->emit('connect', $conn);
             while (true) {
-                //接收数据
                 $buffer = $conn->recv();
                 if ($buffer === '') {
                     $this->emit('close', $conn);

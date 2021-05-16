@@ -302,7 +302,7 @@ class Api
      * 获取客户信息
      *
      * @param string $client 客户端
-     * @param integer $type 具体要获取哪些数据，默认全部获取，也可按需获取，可选参数：Xielei\Swoole\Protocol::CLIENT_INFO_UID(绑定的uid) | Xielei\Swoole\Protocol::CLIENT_INFO_SESSION(session) | Xielei\Swoole\Protocol::CLIENT_INFO_GROUP_LIST(绑定的分组列表) | Xielei\Swoole\Protocol::CLIENT_INFO_TAG_LIST（绑定的标签列表） | Xielei\Swoole\Protocol::CLIENT_INFO_REMOTE_IP（客户ip） | Xielei\Swoole\Protocol::CLIENT_INFO_REMOTE_PORT（客户端口） | Xielei\Swoole\Protocol::CLIENT_INFO_SYSTEM（客户系统信息）
+     * @param integer $type 具体要获取哪些数据，默认全部获取，也可按需获取，可选参数：Xielei\Swoole\Protocol::CLIENT_INFO_UID(绑定的uid) | Xielei\Swoole\Protocol::CLIENT_INFO_SESSION(session) | Xielei\Swoole\Protocol::CLIENT_INFO_GROUP_LIST(绑定的分组列表) | Xielei\Swoole\Protocol::CLIENT_INFO_REMOTE_IP（客户ip） | Xielei\Swoole\Protocol::CLIENT_INFO_REMOTE_PORT（客户端口） | Xielei\Swoole\Protocol::CLIENT_INFO_SYSTEM（客户系统信息）
      * @return array
      */
     public static function getClientInfo(string $client, int $type = 255): array

@@ -9,7 +9,7 @@ use Swoole\Process\Pool;
 class Event
 {
     /**
-     * 工作进程启动
+     * worker start
      *
      * @param Pool $pool
      * @param integer $worker_id
@@ -20,7 +20,7 @@ class Event
     }
 
     /**
-     * 客户端连接
+     * client connect
      *
      * @param string $client
      * @return void
@@ -30,7 +30,7 @@ class Event
     }
 
     /**
-     * websocket客户端链接
+     * websocket connect
      *
      * @param string $client
      * @param array $global
@@ -41,7 +41,7 @@ class Event
     }
 
     /**
-     * 收到客户端消息
+     * client message
      *
      * @param string $client
      * @param string $data
@@ -52,7 +52,7 @@ class Event
     }
 
     /**
-     * 客户端关闭
+     * client close
      *
      * @param string $client
      * @return void
@@ -62,7 +62,7 @@ class Event
     }
 
     /**
-     * 工作进程停止
+     * worker stop
      *
      * @param Pool $pool
      * @param integer $worker_id
