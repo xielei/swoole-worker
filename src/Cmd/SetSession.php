@@ -30,7 +30,7 @@ class SetSession implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
     {
         $data = self::decode($buffer);
-        if ($gateway->exist($data['fd'])) {
+        if (isset($gateway->fd_list[$data['fd']])) {
             $gateway->fd_list[$data['fd']]['session'] = $data['session'];
         }
         return true;

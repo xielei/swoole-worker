@@ -34,15 +34,17 @@ class BindUid implements CmdInterface
             $gateway->uid_list[$data['uid']] = [];
         }
 
-        if ($old_bind_uid = $gateway->fd_list[$data['fd']]['uid']) {
-            unset($gateway->uid_list[$old_bind_uid][$data['fd']]);
-            if (isset($gateway->uid_list[$old_bind_uid]) && !$gateway->uid_list[$old_bind_uid]) {
-                unset($gateway->uid_list[$old_bind_uid]);
+        if (isset($gateway->fd_list[$data['fd']])) {
+            if ($old_bind_uid = $gateway->fd_list[$data['fd']]['uid']) {
+                unset($gateway->uid_list[$old_bind_uid][$data['fd']]);
+                if (isset($gateway->uid_list[$old_bind_uid]) && !$gateway->uid_list[$old_bind_uid]) {
+                    unset($gateway->uid_list[$old_bind_uid]);
+                }
             }
-        }
 
-        $gateway->fd_list[$data['fd']]['uid'] = $data['uid'];
-        $gateway->uid_list[$data['uid']][$data['fd']] = $data['fd'];
+            $gateway->fd_list[$data['fd']]['uid'] = $data['uid'];
+            $gateway->uid_list[$data['uid']][$data['fd']] = $data['fd'];
+        }
 
         return true;
     }

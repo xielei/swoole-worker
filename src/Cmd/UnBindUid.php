@@ -28,13 +28,15 @@ class UnBindUid implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
     {
         $data = self::decode($buffer);
-        if ($bind_uid = $gateway->fd_list[$data['fd']]['uid']) {
-            unset($gateway->uid_list[$bind_uid][$data['fd']]);
-            if (isset($gateway->uid_list[$bind_uid]) && !$gateway->uid_list[$bind_uid]) {
-                unset($gateway->uid_list[$bind_uid]);
+        if (isset($gateway->fd_list[$data['fd']])) {
+            if ($bind_uid = $gateway->fd_list[$data['fd']]['uid']) {
+                unset($gateway->uid_list[$bind_uid][$data['fd']]);
+                if (isset($gateway->uid_list[$bind_uid]) && !$gateway->uid_list[$bind_uid]) {
+                    unset($gateway->uid_list[$bind_uid]);
+                }
             }
+            $gateway->fd_list[$data['fd']]['uid'] = '';
         }
-        $gateway->fd_list[$data['fd']]['uid'] = '';
         return true;
     }
 }

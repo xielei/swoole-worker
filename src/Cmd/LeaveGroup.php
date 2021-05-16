@@ -30,11 +30,13 @@ class LeaveGroup implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
     {
         $data = self::decode($buffer);
-        unset($gateway->group_list[$data['group']][$data['fd']]);
-        if (isset($gateway->group_list[$data['group']]) && !$gateway->group_list[$data['group']]) {
-            unset($gateway->group_list[$data['group']]);
+        if (isset($gateway->fd_list[$data['fd']])) {
+            unset($gateway->group_list[$data['group']][$data['fd']]);
+            if (isset($gateway->group_list[$data['group']]) && !$gateway->group_list[$data['group']]) {
+                unset($gateway->group_list[$data['group']]);
+            }
+            unset($gateway->fd_list[$data['fd']]['group_list'][$data['group']]);
         }
-        unset($gateway->fd_list[$data['fd']]['group_list'][$data['group']]);
         return true;
     }
 }

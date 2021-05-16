@@ -29,16 +29,24 @@ class GetClientInfo implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
     {
         $data = self::decode($buffer);
-        $load = self::encodeClientBuffer($gateway, $data['fd'], $data['type']);
+        if (isset($gateway->fd_list[$data['fd']])) {
+            $load = self::encodeClientBuffer($gateway, $data['fd'], $data['type']);
+        } else {
+            $load = '';
+        }
         $conn->send(pack('NC', 5 + strlen($load), $data['type']) . $load);
         return true;
     }
 
-    public static function result(string $buffer): array
+    public static function result(string $buffer): ?array
     {
         $data = unpack('Nlen/Ctype', $buffer);
         $load = substr($buffer, 5);
-        return self::decodeClientBuffer($load, $data['type']);
+        if ($load) {
+            return self::decodeClientBuffer($load, $data['type']);
+        } else {
+            return null;
+        }
     }
 
     public static function encodeClientBuffer(Gateway $gateway, int $fd, int $type): string

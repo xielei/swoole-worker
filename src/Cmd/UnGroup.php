@@ -30,7 +30,6 @@ class UnGroup implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
     {
         $data = self::decode($buffer);
-
         if (isset($gateway->group_list[$data['group']])) {
             foreach ($gateway->group_list[$data['group']] as $fd) {
                 unset($gateway->fd_list[$fd]['group_list'][$data['group']]);

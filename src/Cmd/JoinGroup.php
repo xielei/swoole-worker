@@ -30,11 +30,13 @@ class JoinGroup implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
     {
         $data = self::decode($buffer);
-        if (!isset($gateway->group_list[$data['group']])) {
-            $gateway->group_list[$data['group']] = [];
+        if (isset($gateway->fd_list[$data['fd']])) {
+            if (!isset($gateway->group_list[$data['group']])) {
+                $gateway->group_list[$data['group']] = [];
+            }
+            $gateway->group_list[$data['group']][$data['fd']] = $data['fd'];
+            $gateway->fd_list[$data['fd']]['group_list'][$data['group']] = $data['group'];
         }
-        $gateway->group_list[$data['group']][$data['fd']] = $data['fd'];
-        $gateway->fd_list[$data['fd']]['group_list'][$data['group']] = $data['group'];
         return true;
     }
 }
