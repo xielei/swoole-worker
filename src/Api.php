@@ -130,7 +130,10 @@ class Api
      */
     public static function isUidOnline(string $uid): bool
     {
-        return self::getClientListByUid($uid) ? true : false;
+        foreach (self::getClientListByUid($uid) as $value) {
+            return true;
+        }
+        return false;
     }
 
     /**
