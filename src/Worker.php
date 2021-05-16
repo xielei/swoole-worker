@@ -7,6 +7,7 @@ namespace Xielei\Swoole;
 use Swoole\ConnectionPool;
 use Swoole\Process\Pool;
 use Swoole\Timer;
+use Throwable;
 use Xielei\Swoole\Cmd\Ping;
 use Xielei\Swoole\Cmd\RegisterWorker;
 
@@ -64,23 +65,26 @@ class Worker extends Pool
             });
         };
         $client->onMessage = function (string $buffer) {
-            if ($data = Protocol::decode($buffer)) {
 
-                // $str = json_encode($data);
-                // echo "DEBUG 收到register消息 解析成功 data:{$str}\n";
-
-                switch ($data['cmd']) {
-                    case Protocol::BROADCAST_ADDRESS_LIST:
-                        $this->gateway_address_list = $data['addresses'];
-                        $this->refreshGatewayPoolList();
-                        break;
-
-                    default:
-                        break;
-                }
-            } else {
+            try {
+                $data = Protocol::decode($buffer);
+            } catch (Throwable $th) {
                 $hex_buffer = bin2hex($buffer);
-                echo "DEBUG 收到register消息 解析失败 buffer:{$hex_buffer}\n";
+                echo "DEBUG 解码失败 buffer:{$hex_buffer}\n";
+                return;
+            }
+
+            // $str = json_encode($data);
+            // echo "DEBUG 收到register消息 解析成功 data:{$str}\n";
+
+            switch ($data['cmd']) {
+                case Protocol::BROADCAST_ADDRESS_LIST:
+                    $this->gateway_address_list = $data['addresses'];
+                    $this->refreshGatewayPoolList();
+                    break;
+
+                default:
+                    break;
             }
         };
         $client->onClose = function () use ($client) {
@@ -155,40 +159,42 @@ class Worker extends Pool
 
     private function onGatewayMessage($buffer, $address)
     {
-        if ($data = Protocol::decode($buffer)) {
-
-            $_SESSION = $data['session'];
-            $client = self::addressToClient([
-                'lan_host' => $address['lan_host'],
-                'lan_port' => $address['lan_port'],
-                'fd' => $data['fd'],
-            ]);
-
-            switch ($data['cmd']) {
-
-                case Protocol::CLIENT_WEBSOCKET_CONNECT:
-                    call_user_func([$this->event, 'onWebsocketConnect'], $client, $data['global']);
-                    break;
-
-                case Protocol::CLIENT_CONNECT:
-                    call_user_func([$this->event, 'onConnect'], $client);
-                    break;
-
-                case Protocol::CLIENT_MESSAGE:
-                    call_user_func([$this->event, 'onMessage'], $client, $data['message']);
-                    break;
-
-                case Protocol::CLIENT_CLOSE:
-                    call_user_func([$this->event, 'onClose'], $client, $data['bind']);
-                    break;
-
-                default:
-                    echo "DEBUG 未知执行方法 cmd:{$data['cmd']}\n";
-                    break;
-            }
-        } else {
+        try {
+            $data = Protocol::decode($buffer);
+        } catch (Throwable $th) {
             $hex = bin2hex($buffer);
             echo "DEBUG 收到gateway消息 解析失败 buffer:{$hex}\n";
+            return;
+        }
+
+        $_SESSION = $data['session'];
+        $client = self::addressToClient([
+            'lan_host' => $address['lan_host'],
+            'lan_port' => $address['lan_port'],
+            'fd' => $data['fd'],
+        ]);
+
+        switch ($data['cmd']) {
+
+            case Protocol::CLIENT_WEBSOCKET_CONNECT:
+                call_user_func([$this->event, 'onWebsocketConnect'], $client, $data['global']);
+                break;
+
+            case Protocol::CLIENT_CONNECT:
+                call_user_func([$this->event, 'onConnect'], $client);
+                break;
+
+            case Protocol::CLIENT_MESSAGE:
+                call_user_func([$this->event, 'onMessage'], $client, $data['message']);
+                break;
+
+            case Protocol::CLIENT_CLOSE:
+                call_user_func([$this->event, 'onClose'], $client, $data['bind']);
+                break;
+
+            default:
+                echo "DEBUG 未知执行方法 cmd:{$data['cmd']}\n";
+                break;
         }
     }
 }

@@ -28,7 +28,7 @@ class GetSession implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
     {
         $data = self::decode($buffer);
-        $buffer = serialize($gateway->fd_list[$data['fd']]['session']);
+        $buffer = serialize($gateway->fd_list[$data['fd']]['session'] ?? null);
         $conn->send(pack('N', 4 + strlen($buffer)) . $buffer);
         return true;
     }

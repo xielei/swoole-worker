@@ -99,11 +99,9 @@ class Protocol
         return pack('NC', 5 + strlen($load), $cmd) . $load;
     }
 
-    public static function decode($buffer): ?array
+    public static function decode($buffer): array
     {
-        if (!$data = unpack('Npack_len/Ccmd', $buffer)) {
-            return null;
-        }
+        $data = unpack('Npack_len/Ccmd', $buffer);
         $load = substr($buffer, 5);
         switch ($data['cmd']) {
 

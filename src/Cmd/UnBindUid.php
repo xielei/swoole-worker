@@ -34,7 +34,7 @@ class UnBindUid implements CmdInterface
                 unset($gateway->uid_list[$bind_uid]);
             }
         }
-        $gateway->fd_list[$data['fd']]['uid'] = null;
+        $gateway->fd_list[$data['fd']]['uid'] = '';
         return true;
     }
 }

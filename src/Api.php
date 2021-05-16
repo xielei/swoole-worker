@@ -115,13 +115,10 @@ class Api
      * @param string $client
      * @return boolean
      */
-    public static function isOnline(string $client): ?bool
+    public static function isOnline(string $client): bool
     {
         $address = Worker::clientToAddress($client);
-        if ($buffer = self::sendToAddressAndRecv($address, IsOnline::encode($address['fd']))) {
-            return isOnline::result($buffer);
-        }
-        return null;
+        return isOnline::result(self::sendToAddressAndRecv($address, IsOnline::encode($address['fd'])));
     }
 
     /**
@@ -617,7 +614,7 @@ class Api
      * @param float $timeout 超时时间 单位秒 支持浮点数
      * @return string
      */
-    public static function sendToAddressAndRecv(array $address, string $buffer, float $timeout = 1): ?string
+    public static function sendToAddressAndRecv(array $address, string $buffer, float $timeout = 1): string
     {
         return self::getConnPool($address['lan_host'], $address['lan_port'])->sendAndRecv(pack('N', 4 + strlen($buffer)) . $buffer);
     }

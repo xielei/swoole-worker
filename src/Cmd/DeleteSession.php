@@ -29,7 +29,7 @@ class DeleteSession implements CmdInterface
     {
         $data = self::decode($buffer);
         if ($gateway->exist($data['fd'])) {
-            $gateway->fd_list[$data['fd']]['session'] = null;
+            $gateway->fd_list[$data['fd']]['session'] = [];
         }
         return true;
     }

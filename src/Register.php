@@ -6,6 +6,7 @@ namespace Xielei\Swoole;
 
 use Swoole\Server;
 use Swoole\Timer;
+use Throwable;
 
 class Register extends Server
 {
@@ -35,45 +36,47 @@ class Register extends Server
         });
 
         $this->on('receive', function ($server, $fd, $reactor_id, $buffer) {
-            if ($data = Protocol::decode($buffer)) {
-                switch ($data['cmd']) {
-                    case Protocol::GATEWAY_CONNECT:
 
-                        echo "DEBUG 收到消息 fd:{$fd} Protocol::GATEWAY_CONNECT\n";
-
-                        if ($this->secret_key && $data['register_secret_key'] !== $this->secret_key) {
-                            $server->close($fd);
-                            return;
-                        }
-                        $this->gateway_fd_list[$fd] = pack('Nn', $data['lan_host'], $data['lan_port']);
-                        $this->broadcastAddresses($server);
-                        break;
-
-                    case Protocol::WORKER_CONNECT:
-
-                        echo "DEBUG 收到消息 fd:{$fd} Protocol::WORKER_CONNECT\n";
-
-                        if ($this->secret_key && $data['register_secret_key'] !== $this->secret_key) {
-                            $server->close($fd);
-                            return;
-                        }
-                        $this->worker_fd_list[$fd] = $fd;
-                        $this->broadcastAddresses($server, $fd);
-                        break;
-
-                    case Protocol::PING:
-                        break;
-
-                    default:
-
-                        echo "DEBUG 未知消息 cmd:{$data['cmd']} fd:{$fd} 关闭连接\n";
-
-                        $server->close($fd);
-                        break;
-                }
-            } else {
+            try {
+                $data = Protocol::decode($buffer);
+            } catch (Throwable $th) {
                 $hex_buffer = bin2hex($buffer);
                 echo "DEBUG 解码失败 fd:{$fd} buffer:{$hex_buffer}\n";
+                return;
+            }
+
+            switch ($data['cmd']) {
+                case Protocol::GATEWAY_CONNECT:
+
+                    echo "DEBUG 收到消息 fd:{$fd} Protocol::GATEWAY_CONNECT\n";
+
+                    if ($this->secret_key && $data['register_secret_key'] !== $this->secret_key) {
+                        $server->close($fd);
+                        return;
+                    }
+                    $this->gateway_fd_list[$fd] = pack('Nn', $data['lan_host'], $data['lan_port']);
+                    $this->broadcastAddresses($server);
+                    break;
+
+                case Protocol::WORKER_CONNECT:
+
+                    echo "DEBUG 收到消息 fd:{$fd} Protocol::WORKER_CONNECT\n";
+
+                    if ($this->secret_key && $data['register_secret_key'] !== $this->secret_key) {
+                        $server->close($fd);
+                        return;
+                    }
+                    $this->worker_fd_list[$fd] = $fd;
+                    $this->broadcastAddresses($server, $fd);
+                    break;
+
+                case Protocol::PING:
+                    break;
+
+                default:
+                    echo "DEBUG 未知消息 cmd:{$data['cmd']} fd:{$fd} 关闭连接\n";
+                    $server->close($fd);
+                    break;
             }
         });
 

@@ -7,7 +7,7 @@ use Xielei\Swoole\Api;
 use Xielei\Swoole\Event as SwooleEvent;
 use Xielei\Swoole\Protocol;
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class Event extends SwooleEvent
 {
@@ -35,9 +35,10 @@ class Event extends SwooleEvent
     {
         $session = json_encode($_SESSION);
         echo "event onMessage client:{$client} session:{$session} data:{$data}\n";
-        if (trim($data) == 'test uid') {
-            $this->testUid($client, '100');
-        }
+
+        $this->testUid($client);
+        $this->testGroup($client);
+        $this->testSession($client);
     }
 
     public function onClose(string $client, array $info)
@@ -45,19 +46,13 @@ class Event extends SwooleEvent
         echo "event onClose {$client}\n";
     }
 
-    /**
-     * Undocumented function
-     *
-     * @param string $client
-     * @param int|float|string|bool $uid
-     * @return void
-     */
-    private function testUid(string $client, string $uid)
+    private function testUid(string $client)
     {
-        Api::sendToClient($client, "test uid...\n");
+        $uid = '11';
+
+        Api::sendToClient($client, "test uid start...\n");
 
         // test binduid
-        Api::sendToClient($client, "test bindUid {$uid}\n");
         Api::bindUid($client, $uid);
         $info = Api::getClientInfo($client, Protocol::CLIENT_INFO_UID);
         if ($info['uid'] === $uid) {
@@ -95,8 +90,6 @@ class Event extends SwooleEvent
         }
 
         Api::unBindUid($client);
-        Api::sendToClient($client, "test unBindUid...\n");
-
         $info = Api::getClientInfo($client, Protocol::CLIENT_INFO_UID);
         if (!$info['uid']) {
             Api::sendToClient($client, "test unBindUid success\n");
@@ -131,5 +124,224 @@ class Event extends SwooleEvent
         } else {
             Api::sendToClient($client, "test getUidCount failure\n");
         }
+
+        Api::sendToClient($client, "test uid end\n");
+    }
+
+    private function testGroup(string $client)
+    {
+        Api::sendToClient($client, "test group start...\n");
+
+        $group1 = 'testgroup1';
+        $group2 = 'testgroup2';
+        Api::unGroup($group1);
+        Api::unGroup($group2);
+
+        // test joinGroup
+        Api::joinGroup($client, $group1);
+        $info = Api::getClientInfo($client, Protocol::CLIENT_INFO_GROUP_LIST);
+        if ($info['group_list'] === [$group1]) {
+            Api::sendToClient($client, "test joinGroup success\n");
+        } else {
+            $info = json_encode($info);
+            Api::sendToClient($client, "test joinGroup failure info:{$info}\n");
+        }
+
+        $group_list = iterator_to_array(Api::getGroupList(true));
+        if ($group_list === [$group1]) {
+            Api::sendToClient($client, "test getGroupList success\n");
+        } else {
+            $group_list = json_encode($group_list);
+            Api::sendToClient($client, "test getGroupList failure group_list:{$group_list}\n");
+        }
+
+        $client_list = iterator_to_array(Api::getClientListByGroup($group1));
+        if ($client_list === [$client]) {
+            Api::sendToClient($client, "test getClientListByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getClientListByGroup failure\n");
+        }
+
+        if (Api::getClientCountByGroup($group1) === 1) {
+            Api::sendToClient($client, "test getClientCountByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getClientCountByGroup failure\n");
+        }
+
+        if (Api::getUidCountByGroup($group1) === 0) {
+            Api::sendToClient($client, "test getUidCountByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getUidCountByGroup failure\n");
+        }
+
+        $uid = '100';
+        Api::bindUid($client, $uid);
+
+        $uid_list = iterator_to_array(Api::getUidListByGroup($group1));
+        if ($uid_list === [$uid]) {
+            Api::sendToClient($client, "test getUidListByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getUidListByGroup failure\n");
+        }
+
+        if (Api::getUidCountByGroup($group1) === 1) {
+            Api::sendToClient($client, "test getUidCountByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getUidCountByGroup failure\n");
+        }
+
+        Api::joinGroup($client, $group2);
+
+        $info = Api::getClientInfo($client, Protocol::CLIENT_INFO_GROUP_LIST);
+        if ($info['group_list'] === [$group1, $group2]) {
+            Api::sendToClient($client, "test joinGroup success\n");
+        } else {
+            $info = json_encode($info);
+            Api::sendToClient($client, "test joinGroup failure info:{$info}\n");
+        }
+
+        if (Api::getUidCountByGroup($group2) === 1) {
+            Api::sendToClient($client, "test getUidCountByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getUidCountByGroup failure\n");
+        }
+
+        $group_list = iterator_to_array(Api::getGroupList(true));
+        if ($group_list === [$group1, $group2]) {
+            Api::sendToClient($client, "test getGroupList success\n");
+        } else {
+            $group_list = json_encode($group_list);
+            Api::sendToClient($client, "test getGroupList failure group_list:{$group_list}\n");
+        }
+
+        $client_list = iterator_to_array(Api::getClientListByGroup($group2));
+        if ($client_list === [$client]) {
+            Api::sendToClient($client, "test getClientListByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getClientListByGroup failure\n");
+        }
+
+        if (Api::getClientCountByGroup($group2) === 1) {
+            Api::sendToClient($client, "test getClientCountByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getClientCountByGroup failure\n");
+        }
+
+        $uid_list = iterator_to_array(Api::getUidListByGroup($group2));
+        if ($uid_list === [$uid]) {
+            Api::sendToClient($client, "test getUidListByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getUidListByGroup failure\n");
+        }
+
+        Api::leaveGroup($client, $group2);
+
+        if (Api::getUidCountByGroup($group1) === 1) {
+            Api::sendToClient($client, "test getUidCountByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getUidCountByGroup failure\n");
+        }
+
+        if (Api::getUidCountByGroup($group2) === 0) {
+            Api::sendToClient($client, "test getUidCountByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getUidCountByGroup failure\n");
+        }
+
+        $info = Api::getClientInfo($client, Protocol::CLIENT_INFO_GROUP_LIST);
+        if ($info['group_list'] === [$group1]) {
+            Api::sendToClient($client, "test joinGroup success\n");
+        } else {
+            $info = json_encode($info);
+            Api::sendToClient($client, "test joinGroup failure info:{$info}\n");
+        }
+
+        $group_list = iterator_to_array(Api::getGroupList(true));
+        if ($group_list === [$group1]) {
+            Api::sendToClient($client, "test getGroupList success\n");
+        } else {
+            $group_list = json_encode($group_list);
+            Api::sendToClient($client, "test getGroupList failure group_list:{$group_list}\n");
+        }
+
+        $client_list = iterator_to_array(Api::getClientListByGroup($group1));
+        if ($client_list === [$client]) {
+            Api::sendToClient($client, "test getClientListByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getClientListByGroup failure\n");
+        }
+
+        if (Api::getClientCountByGroup($group1) === 1) {
+            Api::sendToClient($client, "test getClientCountByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getClientCountByGroup failure\n");
+        }
+
+        $uid_list = iterator_to_array(Api::getUidListByGroup($group1));
+        if ($uid_list === [$uid]) {
+            Api::sendToClient($client, "test getUidListByGroup success\n");
+        } else {
+            Api::sendToClient($client, "test getUidListByGroup failure\n");
+        }
+
+        Api::sendToClient($client, "test group end\n");
+    }
+
+    private function testSession($client)
+    {
+        Api::sendToClient($client, "test session start...\n");
+
+        $address = unpack('Nlan_host/nlan_port/Nfd', hex2bin($client));
+        $address['lan_host'] = long2ip($address['lan_host']);
+        $address['fd'] += 1000;
+        $client2 = bin2hex(pack('NnN', ip2long($address['lan_host']), $address['lan_port'], $address['fd']));
+        if (Api::getSession($client2) === null) {
+            Api::sendToClient($client, "test getSession success\n");
+        } else {
+            Api::sendToClient($client, "test getSession failure\n");
+        }
+
+        Api::deleteSession($client);
+
+        if (Api::getSession($client) === []) {
+            Api::sendToClient($client, "test getSession success\n");
+        } else {
+            Api::sendToClient($client, "test getSession failure\n");
+        }
+
+        $session = ['a' => 'b', 'd' => 2];
+        Api::setSession($client, $session);
+
+        if (Api::getSession($client) === $session) {
+            Api::sendToClient($client, "test setSession success\n");
+        } else {
+            Api::sendToClient($client, "test setSession failure\n");
+        }
+
+        Api::updateSession($client, ['a' => 2, 'b' => 3]);
+
+        if (Api::getSession($client) === ['a' => 2, 'd' => 2, 'b' => 3]) {
+            Api::sendToClient($client, "test updateSession success\n");
+        } else {
+            $tmp = json_encode(Api::getSession($client));
+            Api::sendToClient($client, "test updateSession failure {$tmp}\n");
+        }
+
+        Api::setSession($client, ['sd' => 22]);
+        if (Api::getSession($client) === ['sd' => 22]) {
+            Api::sendToClient($client, "test setSession success\n");
+        } else {
+            Api::sendToClient($client, "test setSession failure\n");
+        }
+
+        Api::deleteSession($client);
+
+        if (Api::getSession($client) === []) {
+            Api::sendToClient($client, "test deleteSession success\n");
+        } else {
+            Api::sendToClient($client, "test deleteSession failure\n");
+        }
+
+        Api::sendToClient($client, "test session end\n");
     }
 }

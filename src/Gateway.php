@@ -44,8 +44,8 @@ class Gateway extends SwooleServer
         $this->on('connect', function ($server, $fd) {
             echo "DEBUG 客户链接 fd:{$fd}\n";
             $this->fd_list[$fd] = [
-                'uid' => null,
-                'session' => null,
+                'uid' => '',
+                'session' => [],
                 'group_list' => [],
                 'tag_list' => [],
                 'ws' => isset($this->getClientInfo($fd)['websocket_status']),

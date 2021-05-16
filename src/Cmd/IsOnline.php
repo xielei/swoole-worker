@@ -20,9 +20,9 @@ class IsOnline implements CmdInterface
         return pack('CN', self::getCommandCode(), $fd);
     }
 
-    public static function decode(string $buffer): ?array
+    public static function decode(string $buffer): array
     {
-        return unpack('Nfd', $buffer) ?: null;
+        return unpack('Nfd', $buffer);
     }
 
     public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
@@ -35,11 +35,8 @@ class IsOnline implements CmdInterface
         $conn->send(pack('N', 4 + strlen($buffer)) . $buffer);
     }
 
-    public static function result(string $buffer): ?bool
+    public static function result(string $buffer): bool
     {
-        if ($tmp = unpack('Nlen/Cis_online', $buffer)) {
-            return $tmp['is_online'] ? true : false;
-        }
-        return null;
+        return unpack('Nlen/Cis_online', $buffer)['is_online'] ? true : false;
     }
 }
