@@ -7,8 +7,8 @@ SwooleWorker is a distributed long connection development framework based on Swo
 
 ## Manual
 
-[【ENGLISH】](docs/en) 
-[【简体中文】](docs/zh-CN/README.md) 
+[【ENGLISH】](docs/en)
+[【简体中文】](docs/zh-CN/)
 
 ## Usage scenarios
 
@@ -17,6 +17,12 @@ SwooleWorker is a distributed long connection development framework based on Swo
 3. IM
 4. Games
 5. Others
+
+## Install
+
+``` bash
+composer require xielei/swoole-worker
+```
 
 ## System structure
 
