@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-use Swoole\Process\Pool;
 use Xielei\Swoole\Api;
 use Xielei\Swoole\Event as SwooleEvent;
 use Xielei\Swoole\Protocol;
+use Xielei\Swoole\Worker;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
 class Event extends SwooleEvent
 {
-    public function onWorkerStart(Pool $pool, int $worker_id)
+    public function onWorkerStart(Worker $worker)
     {
         echo "event onWorkerStart\n";
     }
 
-    public function onWorkerStop(Pool $pool, int $worker_id)
+    public function onWorkerStop(Worker $worker)
     {
         echo "event onWorkerStop\n";
     }
@@ -35,15 +35,15 @@ class Event extends SwooleEvent
     {
         $session = json_encode($_SESSION);
         echo "event onMessage client:{$client} session:{$session} data:{$data}\n";
-
         $this->testUid($client);
         $this->testGroup($client);
         $this->testSession($client);
     }
 
-    public function onClose(string $client, array $info)
+    public function onClose(string $client, array $bind)
     {
-        echo "event onClose {$client}\n";
+        $bind = json_encode($bind);
+        echo "event onClose {$client} info:{$bind}\n";
     }
 
     private function testUid(string $client)
@@ -250,10 +250,10 @@ class Event extends SwooleEvent
 
         $info = Api::getClientInfo($client, Protocol::CLIENT_INFO_GROUP_LIST);
         if ($info['group_list'] === [$group1]) {
-            Api::sendToClient($client, "test joinGroup success\n");
+            Api::sendToClient($client, "test getClientInfo success\n");
         } else {
             $info = json_encode($info);
-            Api::sendToClient($client, "test joinGroup failure info:{$info}\n");
+            Api::sendToClient($client, "test getClientInfo failure info:{$info}\n");
         }
 
         $group_list = iterator_to_array(Api::getGroupList(true));
@@ -283,6 +283,9 @@ class Event extends SwooleEvent
         } else {
             Api::sendToClient($client, "test getUidListByGroup failure\n");
         }
+
+        // Api::leaveGroup($client, $group1);
+        Api::leaveGroup($client, $group2);
 
         Api::sendToClient($client, "test group end\n");
     }

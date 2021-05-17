@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Xielei\Swoole;
 
 use Swoole\ConnectionPool;
-use Swoole\Process\Pool;
+use Swoole\Server;
 use Swoole\Timer;
 use Throwable;
 use Xielei\Swoole\Cmd\Ping;
 use Xielei\Swoole\Cmd\RegisterWorker;
 
-class Worker extends Pool
+class Worker extends Server
 {
     public $register_host = '127.0.0.1';
     public $register_port = 3327;
@@ -23,22 +23,25 @@ class Worker extends Pool
 
     private $event;
 
-    public function __construct(Event $event, int $worker_num = 1)
+    public function __construct(Event $event)
     {
         $this->event = $event;
-        parent::__construct($worker_num);
+        parent::__construct('/var/run/myserv.sock', 0, SWOOLE_PROCESS, SWOOLE_UNIX_STREAM);
     }
 
     public function start()
     {
-        $this->on('WorkerStart', function (Pool $pool, $worker_id) {
-            Api::$address_list = &$this->gateway_address_list;
-            $this->connectToRegister();
-            call_user_func([$this->event, 'onWorkerStart'], $pool, $worker_id);
+        $this->on('Receive', function (Worker $worker, int $fd, int $reactorId, string $data) {
         });
 
-        $this->on('WorkerStop', function (Pool $pool, $worker_id) {
-            call_user_func([$this->event, 'onWorkerStop'], $pool, $worker_id);
+        $this->on('WorkerStart', function (Worker $worker, int $worker_id) {
+            Api::$address_list = &$this->gateway_address_list;
+            $this->connectToRegister();
+            call_user_func([$this->event, 'onWorkerStart'], $worker, $worker_id);
+        });
+
+        $this->on('WorkerStop', function (Worker $worker, int $worker_id) {
+            call_user_func([$this->event, 'onWorkerStop'], $worker, $worker_id);
         });
 
         $this->set([

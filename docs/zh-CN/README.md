@@ -120,7 +120,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 include __DIR__ . '/Event.php';
 
-$worker = new Worker(new Event, 2);
+$worker = new Worker(new Event);
 
 // 注册中心 地址端口密钥
 $worker->register_host = '127.0.0.1';

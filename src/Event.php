@@ -4,18 +4,15 @@ declare(strict_types=1);
 
 namespace Xielei\Swoole;
 
-use Swoole\Process\Pool;
-
 class Event
 {
     /**
      * worker start
      *
-     * @param Pool $pool
-     * @param integer $worker_id
+     * @param Worker $worker
      * @return void
      */
-    public function onWorkerStart(Pool $pool, int $worker_id)
+    public function onWorkerStart(Worker $worker)
     {
     }
 
@@ -55,6 +52,7 @@ class Event
      * client close
      *
      * @param string $client
+     * @param array $bind
      * @return void
      */
     public function onClose(string $client, array $bind)
@@ -64,11 +62,10 @@ class Event
     /**
      * worker stop
      *
-     * @param Pool $pool
-     * @param integer $worker_id
+     * @param Worker $worker
      * @return void
      */
-    public function onWorkerStop(Pool $pool, int $worker_id)
+    public function onWorkerStop(Worker $worker)
     {
     }
 }

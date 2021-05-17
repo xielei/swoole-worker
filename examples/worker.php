@@ -8,7 +8,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 include __DIR__ . '/Event.php';
 
-$worker = new Worker(new Event, 3);
+$worker = new Worker(new Event);
 
 $worker->register_secret_key = 'this is secret_key..';
 

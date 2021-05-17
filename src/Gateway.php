@@ -33,7 +33,6 @@ class Gateway extends SwooleServer
 
     public function start()
     {
-
         $this->on('connect', function ($server, $fd) {
             $this->fd_list[$fd] = [
                 'uid' => '',
