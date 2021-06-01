@@ -1,12 +1,13 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
-namespace Xielei\Swoole;
+namespace Xielei\Swoole\Library;
 
 use Swoole\Coroutine;
-use Swoole\Coroutine\Server as CoServer;
+use Swoole\Coroutine\Server as CoroutineServer;
 use Swoole\Coroutine\Server\Connection;
+use Xielei\Swoole\Service;
 
 class Server
 {
@@ -18,48 +19,53 @@ class Server
     public $onStop;
 
     private $server = null;
+    private $stoped = false;
 
     public function __construct(string $host, int $port)
     {
-        $server = new CoServer($host, $port);
+        Service::debug("create server {$host}:{$port}");
+        $server = new CoroutineServer($host, $port, false, true);
         $server->set([
             'open_length_check' => true,
             'package_length_type' => 'N',
             'package_length_offset' => 0,
             'package_body_offset' => 0,
 
-            'open_tcp_keepalive' => true,
-            'tcp_keepidle' => 1,
-            'tcp_keepinterval' => 1,
-            'tcp_keepcount' => 5,
+            'open_tcp_keepalive' => false,
+            // 'tcp_keepidle' => 6,
+            // 'tcp_keepinterval' => 1,
+            // 'tcp_keepcount' => 10,
 
-            'heartbeat_idle_time' => 5,
-            'heartbeat_check_interval' => 1,
+            'heartbeat_idle_time' => 60,
+            'heartbeat_check_interval' => 6,
         ]);
 
         $server->handle(function (Connection $conn) {
             $this->emit('connect', $conn);
-            while (true) {
-                $buffer = $conn->recv();
+            while (!$this->stoped) {
+                $buffer = $conn->recv(1);
+
                 if ($buffer === '') {
                     $this->emit('close', $conn);
+                    Service::debug("server close1");
+                    $conn->close();
                     break;
                 } elseif ($buffer === false) {
-                    $this->emit('error', $conn);
-                    if ($conn->errCode !== SOCKET_ETIMEDOUT) {
-                        $conn->close(true);
+                    $errCode = swoole_last_error();
+                    $this->emit('error', $conn, $errCode);
+                    if ($errCode !== SOCKET_ETIMEDOUT) {
                         $this->emit('close', $conn);
+                        $conn->close();
                         break;
                     }
-                } elseif ($buffer) {
-                    $this->emit('message', $conn, $buffer);
                 } else {
-                    $conn->close(true);
-                    $this->emit('close', $conn);
-                    break;
+                    $this->emit('message', $conn, $buffer);
                 }
-                Coroutine::sleep(0.01);
+                // Coroutine::sleep(0.01);
             }
+            Service::debug("server close5");
+            $this->emit('close', $conn);
+            $conn->close();
         });
         $this->server = $server;
     }
@@ -70,6 +76,13 @@ class Server
         Coroutine::create(function () {
             $this->server->start();
         });
+    }
+
+    public function stop()
+    {
+        $this->stoped = true;
+        $this->server->shutdown();
+        $this->emit('stop');
     }
 
     public function on(string $event, callable $callback)
@@ -84,10 +97,5 @@ class Server
         if ($this->$event !== null) {
             call_user_func($this->$event, ...$param);
         }
-    }
-
-    public function __destruct()
-    {
-        $this->emit('stop');
     }
 }

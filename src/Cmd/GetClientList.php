@@ -1,12 +1,13 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
+use Xielei\Swoole\Protocol;
 
 class GetClientList implements CmdInterface
 {
@@ -25,7 +26,7 @@ class GetClientList implements CmdInterface
         return unpack('Nlimit/Nprev_fd', $buffer);
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $data = self::decode($buffer);
         $fd_list = [];
@@ -40,7 +41,6 @@ class GetClientList implements CmdInterface
                 }
             }
         }
-        $conn->send(pack('NN*', 4 + 4 * count($fd_list), ...$fd_list));
-        return true;
+        $conn->send(Protocol::encode(pack('N*', ...$fd_list)));
     }
 }

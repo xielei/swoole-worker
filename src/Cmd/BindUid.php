@@ -1,11 +1,11 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
 
 class BindUid implements CmdInterface
@@ -27,7 +27,7 @@ class BindUid implements CmdInterface
         return $res;
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $data = self::decode($buffer);
         if (!isset($gateway->uid_list[$data['uid']])) {
@@ -45,7 +45,5 @@ class BindUid implements CmdInterface
             $gateway->fd_list[$data['fd']]['uid'] = $data['uid'];
             $gateway->uid_list[$data['uid']][$data['fd']] = $data['fd'];
         }
-
-        return true;
     }
 }

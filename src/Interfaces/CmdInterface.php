@@ -1,10 +1,11 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
-namespace Xielei\Swoole;
+namespace Xielei\Swoole\Interfaces;
 
 use Swoole\Coroutine\Server\Connection;
+use Xielei\Swoole\Gateway;
 
 interface CmdInterface
 {
@@ -19,9 +20,9 @@ interface CmdInterface
      * execute command
      *
      * @param Gateway $gateway
-     * @param Connection $conn
+     * @param Connection $connection
      * @param string $buffer
-     * @return bool
+     * @return void
      */
-    public static function execute(Gateway $gateway, Connection $connection, string $buffer): bool;
+    public static function execute(Gateway $gateway, Connection $connection, string $buffer);
 }

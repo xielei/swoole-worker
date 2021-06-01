@@ -1,12 +1,13 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
+use Xielei\Swoole\Protocol;
 
 class GetClientListByUid implements CmdInterface
 {
@@ -27,11 +28,10 @@ class GetClientListByUid implements CmdInterface
         ];
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $data = self::decode($buffer);
         $fd_list = $gateway->uid_list[$data['uid']] ?? [];
-        $conn->send(pack('NN*', 4 + 4 * count($fd_list), ...$fd_list));
-        return true;
+        $conn->send(Protocol::encode(pack('N*', ...$fd_list)));
     }
 }

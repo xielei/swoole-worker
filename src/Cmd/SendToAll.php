@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
 
 class SendToAll implements CmdInterface
@@ -29,7 +29,7 @@ class SendToAll implements CmdInterface
         ];
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $data = self::decode($buffer);
         foreach ($gateway->fd_list as $fd => $info) {
@@ -37,6 +37,5 @@ class SendToAll implements CmdInterface
                 $gateway->sendToClient($fd, $data['message']);
             }
         }
-        return true;
     }
 }

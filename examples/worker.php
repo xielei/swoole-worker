@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 use Xielei\Swoole\Worker;
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
-include __DIR__ . '/Event.php';
+$worker = new Worker('127.0.0.1', 9327, 'this is secret_key..');
 
-$worker = new Worker(new Event);
+$worker::$debug_mode = true;
 
-$worker->register_secret_key = 'this is secret_key..';
+$worker->worker_file = __DIR__ . '/Event.php';
 
 $worker->start();

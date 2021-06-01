@@ -1,8 +1,8 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
-namespace Xielei\Swoole;
+namespace Xielei\Swoole\Library;
 
 use Swoole\ConnectionPool;
 use Swoole\Coroutine\Socket;
@@ -52,33 +52,30 @@ class ClientPool extends ConnectionPool
         }
     }
 
-    public function sendAndRecv($buffer): ?string
+    public function sendAndRecv(string $buffer, float $timeout = 1): ?string
     {
         $conn = $this->getConn();
         $res = $conn->send($buffer);
-        if (strlen($buffer) === $res) {
-            $recv = $conn->recv();
+        if (strlen($buffer) !== $res) {
+            $conn->close(true);
+            $this->num -= 1;
+        } else {
+            $recv = $conn->recv(0, $timeout);
             if ($recv === '') {
                 $conn->close(true);
                 $this->num -= 1;
-                return null;
             } elseif ($recv === false) {
                 if ($conn->errCode !== SOCKET_ETIMEDOUT) {
                     $conn->close(true);
                     $this->num -= 1;
-                    return null;
                 } else {
                     $this->put($conn);
-                    return null;
                 }
             } else {
                 $this->put($conn);
                 return $recv;
             }
-        } else {
-            $conn->close(true);
-            $this->num -= 1;
-            return null;
         }
+        return null;
     }
 }

@@ -1,22 +1,22 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
+use Swoole\Timer;
 use Xielei\Swoole\Api;
-use Xielei\Swoole\Event as SwooleEvent;
+use Xielei\Swoole\Helper\WorkerEvent as HelperWorkerEvent;
 use Xielei\Swoole\Protocol;
-use Xielei\Swoole\Worker;
 
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
-class Event extends SwooleEvent
+class WorkerEvent extends HelperWorkerEvent
 {
-    public function onWorkerStart(Worker $worker)
+    public function onWorkerStart()
     {
         echo "event onWorkerStart\n";
     }
 
-    public function onWorkerStop(Worker $worker)
+    public function onWorkerStop()
     {
         echo "event onWorkerStop\n";
     }
@@ -35,9 +35,22 @@ class Event extends SwooleEvent
     {
         $session = json_encode($_SESSION);
         echo "event onMessage client:{$client} session:{$session} data:{$data}\n";
-        $this->testUid($client);
-        $this->testGroup($client);
-        $this->testSession($client);
+
+        for ($i = 0; $i < 10; $i++) {
+            Api::sendToClient($client, "\033[2J");
+            Api::sendToClient($client, "\033[0;0H");
+            $this->testUid($client);
+            $this->testGroup($client);
+            $this->testSession($client);
+        }
+    }
+
+    public function onWorkerExit()
+    {
+        if ($this->timer) {
+            Timer::clear($this->timer);
+            unset($this->timer);
+        }
     }
 
     public function onClose(string $client, array $bind)
@@ -261,14 +274,15 @@ class Event extends SwooleEvent
             Api::sendToClient($client, "test getGroupList success\n");
         } else {
             $group_list = json_encode($group_list);
-            Api::sendToClient($client, "test getGroupList failure group_list:{$group_list}\n");
+            Api::sendToClient($client, "test getGroupList failure group_list:{$group_list} [{$group1}]\n");
         }
 
         $client_list = iterator_to_array(Api::getClientListByGroup($group1));
         if ($client_list === [$client]) {
             Api::sendToClient($client, "test getClientListByGroup success\n");
         } else {
-            Api::sendToClient($client, "test getClientListByGroup failure\n");
+            $client_list = json_encode($client_list);
+            Api::sendToClient($client, "test getClientListByGroup failure {$client_list} === [{$client}]\n");
         }
 
         if (Api::getClientCountByGroup($group1) === 1) {
@@ -281,7 +295,8 @@ class Event extends SwooleEvent
         if ($uid_list === [$uid]) {
             Api::sendToClient($client, "test getUidListByGroup success\n");
         } else {
-            Api::sendToClient($client, "test getUidListByGroup failure\n");
+            $uid_list = json_encode($uid_list);
+            Api::sendToClient($client, "test getUidListByGroup failure {$uid_list} === [{$uid}]\n");
         }
 
         // Api::leaveGroup($client, $group1);

@@ -1,11 +1,11 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
 
 class Ping implements CmdInterface
@@ -20,8 +20,7 @@ class Ping implements CmdInterface
         return pack('C', self::getCommandCode());
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
-        return true;
     }
 }

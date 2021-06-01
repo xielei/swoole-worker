@@ -1,11 +1,11 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
 
 class CloseClient implements CmdInterface
@@ -25,10 +25,9 @@ class CloseClient implements CmdInterface
         return unpack('Nfd/Cforce', $buffer);
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $data = self::decode($buffer);
-        $gateway->close($data['fd'], $data['force']);
-        return true;
+        $gateway->getServer()->close($data['fd'], $data['force']);
     }
 }

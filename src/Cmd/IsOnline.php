@@ -1,12 +1,13 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
+use Xielei\Swoole\Protocol;
 
 class IsOnline implements CmdInterface
 {
@@ -25,18 +26,16 @@ class IsOnline implements CmdInterface
         return unpack('Nfd', $buffer);
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
-        if (!$data = self::decode($buffer)) {
-            return false;
-        }
-        $is_online = $gateway->exist($data['fd']);
+        $data = self::decode($buffer);
+        $is_online = $gateway->getServer()->exist($data['fd']);
         $buffer = pack('C', $is_online);
-        $conn->send(pack('N', 4 + strlen($buffer)) . $buffer);
+        $conn->send(Protocol::encode($buffer));
     }
 
     public static function result(string $buffer): bool
     {
-        return unpack('Nlen/Cis_online', $buffer)['is_online'] ? true : false;
+        return unpack('Cis_online', $buffer)['is_online'] ? true : false;
     }
 }

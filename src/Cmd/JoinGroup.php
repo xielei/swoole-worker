@@ -1,11 +1,11 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
 
 class JoinGroup implements CmdInterface
@@ -27,7 +27,7 @@ class JoinGroup implements CmdInterface
         return $res;
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $data = self::decode($buffer);
         if (isset($gateway->fd_list[$data['fd']])) {
@@ -37,6 +37,5 @@ class JoinGroup implements CmdInterface
             $gateway->group_list[$data['group']][$data['fd']] = $data['fd'];
             $gateway->fd_list[$data['fd']]['group_list'][$data['group']] = $data['group'];
         }
-        return true;
     }
 }

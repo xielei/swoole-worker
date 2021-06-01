@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
 
 class SendToGroup implements CmdInterface
@@ -30,7 +30,7 @@ class SendToGroup implements CmdInterface
         ];
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $data = self::decode($buffer);
         $fd_list = $gateway->group_list[$data['group']] ?? [];
@@ -39,6 +39,5 @@ class SendToGroup implements CmdInterface
                 $gateway->sendToClient($fd, $data['message']);
             }
         }
-        return true;
     }
 }

@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
+use Xielei\Swoole\Protocol;
 
 class GetSession implements CmdInterface
 {
@@ -25,11 +26,10 @@ class GetSession implements CmdInterface
         return unpack('Nfd', $buffer);
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $data = self::decode($buffer);
         $buffer = serialize($gateway->fd_list[$data['fd']]['session'] ?? null);
-        $conn->send(pack('N', 4 + strlen($buffer)) . $buffer);
-        return true;
+        $conn->send(Protocol::encode($buffer));
     }
 }

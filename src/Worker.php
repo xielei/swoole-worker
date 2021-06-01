@@ -1,165 +1,202 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole;
 
-use Swoole\ConnectionPool;
-use Swoole\Server;
+use Swoole\Coroutine;
+use Swoole\Process;
+use Swoole\Server as SwooleServer;
 use Swoole\Timer;
-use Throwable;
 use Xielei\Swoole\Cmd\Ping;
 use Xielei\Swoole\Cmd\RegisterWorker;
+use Xielei\Swoole\Library\Client;
 
-class Worker extends Server
+class Worker extends Service
 {
-    public $register_host = '127.0.0.1';
-    public $register_port = 3327;
-    public $register_secret_key = '';
+    public $init_file = __DIR__ . '/init/worker.php';
+    public $worker_file = __DIR__ . '/init/event_worker.php';
+    public $task_file = __DIR__ . '/init/event_task.php';
+
+    private $register_host;
+    private $register_port;
+    private $register_secret_key;
+    private $register_conn;
+
+    private $process;
 
     private $gateway_address_list = [];
-    private $gateway_pool_list = [];
-    private $gateway_pool_count = 5;
+    private $gateway_conn_list = [];
 
-    private $event;
-
-    public function __construct(Event $event)
+    public function __construct(string $register_host = '127.0.0.1', int $register_port = 9327, string $register_secret_key = '')
     {
-        $this->event = $event;
-        parent::__construct('/var/run/myserv.sock', 0, SWOOLE_PROCESS, SWOOLE_UNIX_STREAM);
+        $this->register_host = $register_host;
+        $this->register_port = $register_port;
+        $this->register_secret_key = $register_secret_key;
+        parent::__construct();
     }
 
-    public function start()
+    protected function init(SwooleServer $server)
     {
-        $this->on('Receive', function (Worker $worker, int $fd, int $reactorId, string $data) {
-        });
-
-        $this->on('WorkerStart', function (Worker $worker, int $worker_id) {
-            Api::$address_list = &$this->gateway_address_list;
-            $this->connectToRegister();
-            call_user_func([$this->event, 'onWorkerStart'], $worker, $worker_id);
-        });
-
-        $this->on('WorkerStop', function (Worker $worker, int $worker_id) {
-            call_user_func([$this->event, 'onWorkerStop'], $worker, $worker_id);
-        });
-
-        $this->set([
-            'enable_coroutine' => true,
+        $server->set([
+            'task_worker_num' => 1,
+            'task_enable_coroutine' => true,
         ]);
 
-        parent::start();
+        $process = new Process(function ($process) {
+            $this->connectToRegister();
+            $socket = $process->exportSocket();
+            while (true) {
+                $msg = $socket->recv();
+                if (!$msg) {
+                    continue;
+                }
+                $res = unserialize($msg);
+                switch ($res['event']) {
+                    case 'gateway_address_list':
+                        $this->getServer()->sendMessage(serialize([
+                            'event' => 'gateway_address_list',
+                            'gateway_address_list' => $this->gateway_address_list,
+                        ]), $res['worker_id']);
+                        break;
+                }
+            }
+        }, false, 2, true);
+        $this->process = $process;
+        $server->addProcess($process);
+
+        $server->on('WorkerStart', function (...$args) {
+            include $this->init_file;
+            $this->emit('WorkerStart', ...$args);
+        });
+        foreach (['WorkerExit', 'WorkerStop', 'Connect', 'Receive', 'Close', 'Packet', 'Task', 'Finish', 'PipeMessage'] as $event) {
+            $server->on($event, function (...$args) use ($event) {
+                $this->emit($event, ...$args);
+            });
+        }
+    }
+
+    private function emit(string $event, ...$args)
+    {
+        $event = strtolower('on' . $event);
+        Service::debug("{$event}");
+        call_user_func($this->$event ?: function () {}, ...$args);
+    }
+
+    private function on(string $event, callable $callback)
+    {
+        $event = strtolower('on' . $event);
+        $this->$event = $callback;
+    }
+
+    private function sendToProcess($data)
+    {
+        $this->process->exportSocket()->send(serialize($data));
     }
 
     private function connectToRegister()
     {
         $client = new Client($this->register_host, $this->register_port);
-        $client->onConnect = function () use ($client) {
-            $client->send(Protocol::encode(Protocol::WORKER_CONNECT, [
-                'register_secret_key' => $this->register_secret_key,
-            ]));
+        $client->onConnect = function (Client $client) {
+            Service::debug("connect to register");
+            $client->send(Protocol::encode(pack('C', Protocol::WORKER_CONNECT) . $this->register_secret_key));
 
-            $ping_buffer = Protocol::encode(Protocol::PING);
-            Timer::tick(30000, function () use ($client, $ping_buffer) {
+            $ping_buffer = Protocol::encode(pack('C', Protocol::PING));
+            $client->timer_id = Timer::tick(30000, function () use ($client, $ping_buffer) {
+                Service::debug("send ping to register");
                 $client->send($ping_buffer);
             });
         };
         $client->onMessage = function (string $buffer) {
-
-            try {
-                $data = Protocol::decode($buffer);
-            } catch (Throwable $th) {
-                $hex_buffer = bin2hex($buffer);
-                echo "Protocol::decode failuer! buffer:{$hex_buffer}\n";
-                return;
-            }
-
+            Service::debug("receive message from register");
+            $data = unpack('Ccmd/A*load', Protocol::decode($buffer));
             switch ($data['cmd']) {
-                case Protocol::BROADCAST_ADDRESS_LIST:
-                    $this->gateway_address_list = $data['addresses'];
-                    $this->refreshGatewayPoolList();
+                case Protocol::BROADCAST_GATEWAY_ADDRESS_LIST:
+                    $addresses = [];
+                    if ($data['load'] && (strlen($data['load']) % 6 === 0)) {
+                        foreach (str_split($data['load'], 6) as $value) {
+                            $address = unpack('Nlan_host/nlan_port', $value);
+                            $address['lan_host'] = long2ip($address['lan_host']);
+                            $addresses[$address['lan_host'] . ':' . $address['lan_port']] = $address;
+                        }
+                    }
+                    $this->gateway_address_list = $addresses;
+
+                    for ($i = 0; $i < $this->getServer()->setting['worker_num'] + $this->getServer()->setting['task_worker_num']; $i++) {
+                        $this->getServer()->sendMessage(serialize([
+                            'event' => 'gateway_address_list',
+                            'gateway_address_list' => $this->gateway_address_list,
+                        ]), $i);
+                    }
+
+                    $new_address_list = array_diff_key($this->gateway_address_list, $this->gateway_conn_list);
+                    foreach ($new_address_list as $key => $address) {
+                        $client = new Client($address['lan_host'], $address['lan_port']);
+                        $client->onConnect = function () use ($client, $address) {
+                            Service::debug("connect to gateway {$address['lan_host']}:{$address['lan_port']} 成功");
+                            $client->send(Protocol::encode(pack('C', RegisterWorker::getCommandCode())));
+
+                            $ping_buffer = Protocol::encode(pack('C', Ping::getCommandCode()));
+                            $client->timer_id = Timer::tick(30000, function () use ($client, $ping_buffer, $address) {
+                                Service::debug("send ping to gateway {$address['lan_host']}:{$address['lan_port']}");
+                                $client->send($ping_buffer);
+                            });
+                        };
+                        $client->onMessage = function (string $buffer) use ($address) {
+                            $this->getServer()->sendMessage(serialize([
+                                'event' => 'gateway_event',
+                                'buffer' => $buffer,
+                                'address' => $address,
+                            ]), $address['port'] % $this->getServer()->setting['worker_num']);
+                        };
+                        $client->onClose = function () use ($client, $address) {
+                            if ($client->timer_id) {
+                                Timer::clear($client->timer_id);
+                                unset($client->timer_id);
+                            }
+                            Coroutine::sleep(1);
+                            Service::debug("reconnect to gateway {$address['lan_host']}:{$address['lan_port']}");
+                            $client->connect();
+                        };
+                        $client->start();
+                        $this->gateway_conn_list[$key] = $client;
+                    }
+
+                    $off_address_list = array_diff_key($this->gateway_conn_list, $this->gateway_address_list);
+                    foreach ($off_address_list as $key => $client) {
+                        $client->stop();
+                        unset($this->gateway_conn_list[$key]);
+                    }
                     break;
 
                 default:
                     break;
             }
         };
-        $client->onClose = function () use ($client) {
-            Timer::after(1000, function () use ($client) {
-                $client->connect();
-            });
+        $client->onClose = function (Client $client) {
+            Service::debug("closed by register");
+            if ($client->timer_id) {
+                Timer::clear($client->timer_id);
+                unset($client->timer_id);
+            }
+            Coroutine::sleep(1);
+            Service::debug("reconnect to register");
+            $client->connect();
         };
+        $this->register_conn = $client;
         $client->start();
-    }
-
-    private function refreshGatewayPoolList()
-    {
-        $new_address_list = array_diff_key($this->gateway_address_list, $this->gateway_pool_list);
-        foreach ($new_address_list as $key => $address) {
-            $this->gateway_pool_list[$key] = new ConnectionPool(function () use ($address) {
-                $client = new Client($address['lan_host'], $address['lan_port']);
-                $client->onConnect = function () use ($client) {
-                    $client->send(pack('NC', 5, RegisterWorker::getCommandCode()));
-
-                    $ping_buffer = pack('NC', 5, Ping::getCommandCode());
-                    Timer::tick(30000, function () use ($client, $ping_buffer) {
-                        $client->send($ping_buffer);
-                    });
-                };
-                $client->onMessage = function (string $buffer) use ($address) {
-                    $this->onGatewayMessage($buffer, $address);
-                };
-                $client->onClose = function () use ($client) {
-                    Timer::after(1000, function () use ($client) {
-                        $client->connect();
-                    });
-                };
-                $client->start();
-                return $client;
-            }, $this->gateway_pool_count);
-            $this->gateway_pool_list[$key]->fill();
-        }
-
-        $off_address_list = array_diff_key($this->gateway_pool_list, $this->gateway_address_list);
-        foreach ($off_address_list as $key => $pool) {
-            $pool->close();
-            unset($this->gateway_pool_list[$key]);
-        }
-    }
-
-    public static function addressToClient(array $address): string
-    {
-        return bin2hex(pack('NnN', ip2long($address['lan_host']), $address['lan_port'], $address['fd']));
-    }
-
-    public static function clientToAddress(string $client): array
-    {
-        $res = unpack('Nlan_host/nlan_port/Nfd', hex2bin($client));
-        $res['lan_host'] = long2ip($res['lan_host']);
-        return $res;
     }
 
     private function onGatewayMessage($buffer, $address)
     {
-        try {
-            $data = Protocol::decode($buffer);
-        } catch (Throwable $th) {
-            $hex = bin2hex($buffer);
-            echo "Protocol::decode failure! buffer:{$hex}\n";
-            return;
-        }
+        $data = unpack('Ccmd/Nfd/Nsession_len/A*data', Protocol::decode($buffer));
 
-        $_SESSION = $data['session'];
-        $client = self::addressToClient([
-            'lan_host' => $address['lan_host'],
-            'lan_port' => $address['lan_port'],
-            'fd' => $data['fd'],
-        ]);
-
+        $_SESSION = unserialize(substr($data['data'], 0, $data['session_len']));
+        $extra = substr($data['data'], $data['session_len']);
+        $client = bin2hex(pack('NnN', ip2long($address['lan_host']), $address['lan_port'], $data['fd']));
         switch ($data['cmd']) {
-
             case Protocol::CLIENT_WEBSOCKET_CONNECT:
-                call_user_func([$this->event, 'onWebsocketConnect'], $client, $data['global']);
+                call_user_func([$this->event, 'onWebsocketConnect'], $client, unserialize($extra));
                 break;
 
             case Protocol::CLIENT_CONNECT:
@@ -167,15 +204,15 @@ class Worker extends Server
                 break;
 
             case Protocol::CLIENT_MESSAGE:
-                call_user_func([$this->event, 'onMessage'], $client, $data['message']);
+                call_user_func([$this->event, 'onMessage'], $client, $extra);
                 break;
 
             case Protocol::CLIENT_CLOSE:
-                call_user_func([$this->event, 'onClose'], $client, $data['bind']);
+                call_user_func([$this->event, 'onClose'], $client, unserialize($extra));
                 break;
 
             default:
-                echo "Undefined CMD! cmdcode:{$data['cmd']}\n";
+                Service::debug("undefined cmd from gateway! cmdcode:{$data['cmd']}");
                 break;
         }
     }

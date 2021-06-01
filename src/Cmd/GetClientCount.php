@@ -1,12 +1,13 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
+use Xielei\Swoole\Protocol;
 
 class GetClientCount implements CmdInterface
 {
@@ -20,14 +21,12 @@ class GetClientCount implements CmdInterface
         return pack('C', self::getCommandCode());
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
-        if ($gateway->worker_id == 0) {
-            $stats = $gateway->stats();
-            $conn->send(pack('NN', 8, $stats['connection_num']));
-        } else {
-            $conn->send(pack('NN', 8, 0));
+        $count = 0;
+        if ($gateway->getServer()->worker_id == 0) {
+            $count = $gateway->getServer()->stats()['connection_num'];
         }
-        return true;
+        $conn->send(Protocol::encode((string) $count));
     }
 }

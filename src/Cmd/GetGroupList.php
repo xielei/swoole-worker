@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
+use Xielei\Swoole\Protocol;
 
 class GetGroupList implements CmdInterface
 {
@@ -20,13 +21,12 @@ class GetGroupList implements CmdInterface
         return pack('C', self::getCommandCode());
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $buffer = '';
         foreach (array_keys($gateway->group_list) as $group) {
             $buffer .= pack('C', strlen((string)$group)) . $group;
         }
-        $conn->send(pack('N', 4 + strlen($buffer)) . $buffer);
-        return true;
+        $conn->send(Protocol::encode($buffer));
     }
 }

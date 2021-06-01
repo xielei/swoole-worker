@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole;
 
@@ -30,6 +30,7 @@ use Xielei\Swoole\Cmd\SetSession;
 use Xielei\Swoole\Cmd\UnBindUid;
 use Xielei\Swoole\Cmd\UnGroup;
 use Xielei\Swoole\Cmd\UpdateSession;
+use Xielei\Swoole\Library\ClientPool;
 
 class Api
 {
@@ -40,12 +41,12 @@ class Api
      *
      * @param string $client 客户端
      * @param string $message 消息内容
-     * @return bool
+     * @return void
      */
-    public static function sendToClient(string $client, string $message): bool
+    public static function sendToClient(string $client, string $message)
     {
-        $address = Worker::clientToAddress($client);
-        return self::sendToAddress($address, SendToClient::encode($address['fd'], $message));
+        $address = self::clientToAddress($client);
+        self::sendToAddress($address, SendToClient::encode($address['fd'], $message));
     }
 
     /**
@@ -58,7 +59,7 @@ class Api
     public static function sendToUid(string $uid, string $message)
     {
         foreach (self::getClientListByUid($uid) as $client) {
-            self::sendToAddress(Worker::clientToAddress($client), $message);
+            self::sendToAddress(self::clientToAddress($client), $message);
         }
     }
 
@@ -73,10 +74,10 @@ class Api
     public static function sendToGroup(string $group, string $message, array $without_client_list = [])
     {
         foreach (self::$address_list as $address) {
-            self::sendToAddress($address, SendToGroup::encode($group, $message, (function () use ($address, $without_client_list): array {
+            self::sendToAddress($address, SendToGroup::encode($group, $message, (function () use ($address, $without_client_list): array{
                 $res = [];
                 foreach ($without_client_list as $client) {
-                    $tmp = Worker::clientToAddress($client);
+                    $tmp = self::clientToAddress($client);
                     if ($tmp['lan_host'] == $address['lan_host'] && $tmp['lan_port'] == $address['lan_port']) {
                         $res[] = $tmp['fd'];
                     }
@@ -96,10 +97,10 @@ class Api
     public static function sendToAll(string $message, array $without_client_list = [])
     {
         foreach (self::$address_list as $address) {
-            self::sendToAddress($address, SendToAll::encode($message, (function () use ($address, $without_client_list): array {
+            self::sendToAddress($address, SendToAll::encode($message, (function () use ($address, $without_client_list): array{
                 $res = [];
                 foreach ($without_client_list as $client) {
-                    $tmp = Worker::clientToAddress($client);
+                    $tmp = self::clientToAddress($client);
                     if ($tmp['lan_host'] == $address['lan_host'] && $tmp['lan_port'] == $address['lan_port']) {
                         $res[] = $tmp['fd'];
                     }
@@ -117,7 +118,7 @@ class Api
      */
     public static function isOnline(string $client): bool
     {
-        $address = Worker::clientToAddress($client);
+        $address = self::clientToAddress($client);
         return isOnline::result(self::sendToAddressAndRecv($address, IsOnline::encode($address['fd'])));
     }
 
@@ -146,7 +147,7 @@ class Api
     {
         $start = $prev_client ? false : true;
         if (!$start) {
-            $tmp = Worker::clientToAddress($prev_client);
+            $tmp = self::clientToAddress($prev_client);
             $prev_address = [
                 'lan_host' => $tmp['lan_host'],
                 'lan_port' => $tmp['lan_port'],
@@ -157,10 +158,10 @@ class Api
         foreach (self::$address_list as $address) {
             if ($start || $address == $prev_address) {
                 $res = self::sendToAddressAndRecv($address, $buffer);
-                foreach (unpack('N*', substr($res, 4)) as $fd) {
+                foreach (unpack('N*', $res) as $fd) {
                     if ($start || $fd > $prev_fd) {
                         $start = true;
-                        yield Worker::addressToClient([
+                        yield self::addressToClient([
                             'lan_host' => $address['lan_host'],
                             'lan_port' => $address['lan_port'],
                             'fd' => $fd,
@@ -191,7 +192,7 @@ class Api
 
         $count = 0;
         foreach ($buffers as $key => $buffer) {
-            $data = unpack('Nlen/Nnum', $buffer);
+            $data = unpack('Nnum', $buffer);
             $count += $data['num'];
         }
         return $count;
@@ -217,7 +218,7 @@ class Api
 
         $count = 0;
         foreach ($buffers as $key => $buffer) {
-            $data = unpack('Npack_len/Ncount', $buffer);
+            $data = unpack('Ncount', $buffer);
             $count += $data['count'];
         }
         return $count;
@@ -233,7 +234,7 @@ class Api
     {
         $start = $prev_client ? false : true;
         if (!$start) {
-            $tmp = Worker::clientToAddress($prev_client);
+            $tmp = self::clientToAddress($prev_client);
             $prev_address = [
                 'lan_host' => $tmp['lan_host'],
                 'lan_port' => $tmp['lan_port'],
@@ -243,11 +244,11 @@ class Api
         foreach (self::$address_list as $address) {
             if ($start || $address == $prev_address) {
                 $tmp_prev_fd = 0;
-                while ($fd_list = unpack('N*', substr(self::sendToAddressAndRecv($address, GetClientList::encode(10000, $tmp_prev_fd)), 4))) {
+                while ($fd_list = unpack('N*', self::sendToAddressAndRecv($address, GetClientList::encode(10000, $tmp_prev_fd)))) {
                     foreach ($fd_list as $fd) {
                         if ($start || $fd > $prev_fd) {
                             $start = true;
-                            yield Worker::addressToClient([
+                            yield self::addressToClient([
                                 'lan_host' => $address['lan_host'],
                                 'lan_port' => $address['lan_port'],
                                 'fd' => $fd,
@@ -272,7 +273,7 @@ class Api
     {
         $start = $prev_client ? false : true;
         if (!$start) {
-            $tmp = Worker::clientToAddress($prev_client);
+            $tmp = self::clientToAddress($prev_client);
             $prev_address = [
                 'lan_host' => $tmp['lan_host'],
                 'lan_port' => $tmp['lan_port'],
@@ -283,10 +284,10 @@ class Api
         foreach (self::$address_list as $address) {
             if ($start || $address == $prev_address) {
                 $res = self::sendToAddressAndRecv($address, $buffer);
-                foreach (unpack('N*', substr($res, 4)) as $fd) {
+                foreach (unpack('N*', $res) as $fd) {
                     if ($start || $fd > $prev_fd) {
                         $start = true;
-                        yield Worker::addressToClient([
+                        yield self::addressToClient([
                             'lan_host' => $address['lan_host'],
                             'lan_port' => $address['lan_port'],
                             'fd' => $fd,
@@ -307,7 +308,7 @@ class Api
      */
     public static function getClientInfo(string $client, int $type = 255): ?array
     {
-        $address = Worker::clientToAddress($client);
+        $address = self::clientToAddress($client);
         return GetClientInfo::result(self::sendToAddressAndRecv($address, GetClientInfo::encode($address['fd'], $type)));
     }
 
@@ -323,7 +324,7 @@ class Api
         $uid_list = [];
         $buffer = GetUidListByGroup::encode($group);
         foreach (self::$address_list as $address) {
-            $res = substr(self::sendToAddressAndRecv($address, $buffer), 4);
+            $res = self::sendToAddressAndRecv($address, $buffer);
             while ($res) {
                 $tmp = unpack('Clen', $res);
                 $uid = substr($res, 1, $tmp['len']);
@@ -352,7 +353,7 @@ class Api
         $uid_list = [];
         $buffer = GetUidList::encode();
         foreach (self::$address_list as $address) {
-            $res = substr(self::sendToAddressAndRecv($address, $buffer), 4);
+            $res = self::sendToAddressAndRecv($address, $buffer);
             while ($res) {
                 $tmp = unpack('Clen', $res);
                 $uid = substr($res, 1, $tmp['len']);
@@ -392,7 +393,7 @@ class Api
         $uid_list = [];
         foreach ($buffers as $key => $buffer) {
             if ($buffer) {
-                $data = unpack('Nlen/Nnum', $buffer);
+                $data = unpack('Nnum', $buffer);
                 $count += $data['num'];
 
                 $res = substr($buffer, 8);
@@ -426,7 +427,7 @@ class Api
         $group_list = [];
         $buffer = GetGroupList::encode();
         foreach (self::$address_list as $key => $address) {
-            $res = substr(self::sendToAddressAndRecv($address, $buffer), 4);
+            $res = self::sendToAddressAndRecv($address, $buffer);
             while ($res) {
                 $tmp = unpack('Clen', $res);
                 $group = substr($res, 1, $tmp['len']);
@@ -464,7 +465,7 @@ class Api
      */
     public static function closeClient(string $client, bool $force = false)
     {
-        $address = Worker::clientToAddress($client);
+        $address = self::clientToAddress($client);
         self::sendToAddress($address, CloseClient::encode($address['fd'], $force));
     }
 
@@ -477,7 +478,7 @@ class Api
      */
     public static function bindUid(string $client, string $uid)
     {
-        $address = Worker::clientToAddress($client);
+        $address = self::clientToAddress($client);
         self::sendToAddress($address, BindUid::encode($address['fd'], $uid));
     }
 
@@ -489,7 +490,7 @@ class Api
      */
     public static function unBindUid(string $client)
     {
-        $address = Worker::clientToAddress($client);
+        $address = self::clientToAddress($client);
         self::sendToAddress($address, UnBindUid::encode($address['fd']));
     }
 
@@ -502,7 +503,7 @@ class Api
      */
     public static function joinGroup(string $client, string $group)
     {
-        $address = Worker::clientToAddress($client);
+        $address = self::clientToAddress($client);
         self::sendToAddress($address, JoinGroup::encode($address['fd'], $group));
     }
 
@@ -515,7 +516,7 @@ class Api
      */
     public static function leaveGroup(string $client, string $group)
     {
-        $address = Worker::clientToAddress($client);
+        $address = self::clientToAddress($client);
         self::sendToAddress($address, LeaveGroup::encode($address['fd'], $group));
     }
 
@@ -542,7 +543,7 @@ class Api
      */
     public static function setSession(string $client, array $session)
     {
-        $address = Worker::clientToAddress($client);
+        $address = self::clientToAddress($client);
         self::sendToAddress($address, SetSession::encode($address['fd'], $session));
     }
 
@@ -555,7 +556,7 @@ class Api
      */
     public static function updateSession(string $client, array $session)
     {
-        $address = Worker::clientToAddress($client);
+        $address = self::clientToAddress($client);
         self::sendToAddress($address, UpdateSession::encode($address['fd'], $session));
     }
 
@@ -567,7 +568,7 @@ class Api
      */
     public static function deleteSession(string $client)
     {
-        $address = Worker::clientToAddress($client);
+        $address = self::clientToAddress($client);
         self::sendToAddress($address, DeleteSession::encode($address['fd']));
     }
 
@@ -579,9 +580,9 @@ class Api
      */
     public static function getSession(string $client): ?array
     {
-        $address = Worker::clientToAddress($client);
+        $address = self::clientToAddress($client);
         $buffer = self::sendToAddressAndRecv($address, GetSession::encode($address['fd']));
-        return unserialize(substr($buffer, 4));
+        return unserialize($buffer);
     }
 
     // 以下为核心基本方法
@@ -611,12 +612,12 @@ class Api
      *
      * @param array $address 指定地址
      * @param string $buffer 发送的数据
-     * @param float $timeout 超时时间 单位秒 支持浮点数
+     * @param float $timeout 超时时间 单位秒
      * @return string
      */
     public static function sendToAddressAndRecv(array $address, string $buffer, float $timeout = 1): string
     {
-        return self::getConnPool($address['lan_host'], $address['lan_port'])->sendAndRecv(pack('N', 4 + strlen($buffer)) . $buffer);
+        return Protocol::decode(self::getConnPool($address['lan_host'], $address['lan_port'])->sendAndRecv(Protocol::encode($buffer), $timeout));
     }
 
     /**
@@ -624,12 +625,11 @@ class Api
      *
      * @param array $address 指定地址
      * @param string $buffer 数据
-     * @param integer $timeout 超时时间，单位秒，支持浮点数
      * @return void
      */
-    public static function sendToAddress(array $address, string $buffer, $timeout = 1): bool
+    public static function sendToAddress(array $address, string $buffer)
     {
-        return self::getConnPool($address['lan_host'], $address['lan_port'])->send(pack('N', 4 + strlen($buffer)) . $buffer);
+        self::getConnPool($address['lan_host'], $address['lan_port'])->send(Protocol::encode($buffer));
     }
 
     public static function getConnPool($host, $port): ClientPool
@@ -639,5 +639,17 @@ class Api
             $pools[$host . ':' . $port] = new ClientPool($host, $port);
         }
         return $pools[$host . ':' . $port];
+    }
+
+    public static function addressToClient(array $address): string
+    {
+        return bin2hex(pack('NnN', ip2long($address['lan_host']), $address['lan_port'], $address['fd']));
+    }
+
+    public static function clientToAddress(string $client): array
+    {
+        $res = unpack('Nlan_host/nlan_port/Nfd', hex2bin($client));
+        $res['lan_host'] = long2ip($res['lan_host']);
+        return $res;
     }
 }

@@ -75,12 +75,15 @@ composer require xielei/swoole-worker
 ``` php
 <?php
 
+declare(strict_types=1);
+
 use Xielei\Swoole\Register;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-$register = new Register('127.0.0.1', 3327);
-$register->secret_key = 'this is secret_key..';
+$register = new Register('127.0.0.1', 9327, 'this is secret_key..');
+
+$register::$debug_mode = true;
 
 $register->start();
 ```
@@ -90,21 +93,24 @@ $register->start();
 ```php
 <?php
 
+declare(strict_types=1);
+
 use Xielei\Swoole\Gateway;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-// 客户端连接地址
-$gateway = new Gateway('127.0.0.1', 8000);
+$gateway = new Gateway('127.0.0.1', 9327, 'this is secret_key..');
 
-// 供内部通讯的地址端口
 $gateway->lan_host = '127.0.0.1';
-$gateway->lan_port_start = 7777;
+$gateway->lan_port = 7777;
 
-// 注册中心 地址端口密钥
-$worker->register_host = '127.0.0.1';
-$worker->register_port = 3327;
-$gateway->register_secret_key = 'this is secret_key..';
+$gateway->listen('127.0.0.1', 8001);
+$gateway->listen('127.0.0.1', 8000, SWOOLE_SOCK_TCP, [
+    'open_websocket_protocol' => true,
+    'open_websocket_close_frame' => true,
+]);
+
+$gateway::$debug_mode = true;
 
 $gateway->start();
 ```
@@ -114,18 +120,17 @@ $gateway->start();
 ```php
 <?php
 
+declare(strict_types=1);
+
 use Xielei\Swoole\Worker;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-include __DIR__ . '/Event.php';
+$worker = new Worker('127.0.0.1', 9327, 'this is secret_key..');
 
-$worker = new Worker(new Event);
+$worker::$debug_mode = true;
 
-// 注册中心 地址端口密钥
-$worker->register_host = '127.0.0.1';
-$worker->register_port = 3327;
-$worker->register_secret_key = 'this is secret_key..';
+$worker->worker_file = __DIR__ . '/Event.php';
 
 $worker->start();
 ```

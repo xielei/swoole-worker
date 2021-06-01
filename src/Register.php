@@ -1,118 +1,85 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole;
 
 use Swoole\Server;
-use Swoole\Timer;
-use Throwable;
 
-class Register extends Server
+class Register extends Service
 {
-    protected $gateway_fd_list = [];
-    protected $worker_fd_list = [];
-    public $secret_key = '';
+    public $init_file = __DIR__ . '/init/register.php';
 
-    public function __construct(string $host = '127.0.0.1', int $port = 3327)
+    private $host;
+    private $port;
+    private $secret_key;
+
+    private $gateway_address_list = [];
+    private $worker_fd_list = [];
+
+    public function __construct(string $host = '127.0.0.1', int $port = 9327, string $secret_key = '')
     {
-        parent::__construct($host, $port, SWOOLE_BASE);
+        parent::__construct();
+
+        $this->host = $host;
+        $this->port = $port;
+        $this->secret_key = $secret_key;
     }
 
-    final public function start()
+    protected function init(Server $server)
     {
-        $this->on('connect', function ($server, $fd) {
-            Timer::after(3000, function () use ($server, $fd) {
-                if (isset($this->gateway_fd_list[$fd]) || isset($this->worker_fd_list[$fd])) {
-                    return;
-                }
-                if ($server->exist($fd)) {
-                    $server->close($fd);
-                }
-            });
-        });
-
-        $this->on('receive', function ($server, $fd, $reactor_id, $buffer) {
-
-            try {
-                $data = Protocol::decode($buffer);
-            } catch (Throwable $th) {
-                $hex_buffer = bin2hex($buffer);
-                echo "Protocol::decode failure! buffer:{$hex_buffer}\n";
-                return;
-            }
-
-            switch ($data['cmd']) {
-                case Protocol::GATEWAY_CONNECT:
-                    if ($this->secret_key && $data['register_secret_key'] !== $this->secret_key) {
-                        $server->close($fd);
-                        return;
-                    }
-                    $this->gateway_fd_list[$fd] = pack('Nn', $data['lan_host'], $data['lan_port']);
-                    $this->broadcastAddresses($server);
-                    break;
-
-                case Protocol::WORKER_CONNECT:
-                    if ($this->secret_key && $data['register_secret_key'] !== $this->secret_key) {
-                        $server->close($fd);
-                        return;
-                    }
-                    $this->worker_fd_list[$fd] = $fd;
-                    $this->broadcastAddresses($server, $fd);
-                    break;
-
-                case Protocol::PING:
-                    break;
-
-                default:
-                    $server->close($fd);
-                    break;
-            }
-        });
-
-        $this->on('close', function ($server, $fd) {
-            if (isset($this->worker_fd_list[$fd])) {
-                unset($this->worker_fd_list[$fd]);
-            }
-            if (isset($this->gateway_fd_list[$fd])) {
-                unset($this->gateway_fd_list[$fd]);
-                $this->broadcastAddresses($server);
-            }
-        });
-
         $this->set([
             'worker_num' => 1,
-
-            'open_length_check' => true,
-            'package_max_length' => 81920,
-            'package_length_type' => 'N',
-            'package_length_offset' => 0,
-            'package_body_offset' => 0,
-
-            'open_tcp_keepalive' => true,
-            'tcp_keepidle' => 4,
-            'tcp_keepinterval' => 1,
-            'tcp_keepcount' => 5,
-
-            'heartbeat_idle_time' => 60,
-            'heartbeat_check_interval' => 6,
         ]);
-
-        parent::start();
+        $server->on('WorkerStart', function (...$args) {
+            include $this->init_file;
+            $this->emit('WorkerStart', ...$args);
+        });
+        foreach (['WorkerExit', 'WorkerStop', 'Connect', 'Receive', 'Close', 'Packet', 'Task', 'Finish', 'PipeMessage'] as $event) {
+            $server->on($event, function (...$args) use ($event) {
+                $this->emit($event, ...$args);
+            });
+        }
+        $port = $server->listen($this->host, $this->port, SWOOLE_SOCK_TCP);
+        foreach (['Connect', 'Receive', 'Close'] as $event) {
+            $port->on($event, function (...$args) use ($event) {
+                $this->emit('Port' . $event, ...$args);
+            });
+        }
     }
 
-    private function broadcastAddresses($server, $fd = null)
+    private function emit(string $event, ...$args)
     {
-        $buffer = Protocol::encode(Protocol::BROADCAST_ADDRESS_LIST, [
-            'addresses' => implode('', $this->gateway_fd_list),
-        ]);
+        $event = strtolower('on' . $event);
+        Service::debug("{$event}");
+        call_user_func($this->$event ?: function () {}, ...$args);
+    }
 
+    private function on(string $event, callable $callback)
+    {
+        $event = strtolower('on' . $event);
+        $this->$event = $callback;
+    }
+
+    private function broadcastGatewayAddressList(int $fd = null)
+    {
+        $load = pack('C', Protocol::BROADCAST_GATEWAY_ADDRESS_LIST) . implode('', $this->gateway_address_list);
+        $buffer = Protocol::encode($load);
         if ($fd) {
-            $server->send($fd, $buffer);
+            $this->getServer()->send($fd, $buffer);
         } else {
             foreach ($this->worker_fd_list as $fd => $info) {
-                $server->send($fd, $buffer);
+                $this->getServer()->send($fd, $buffer);
             }
         }
+
+        $addresses = [];
+        foreach ($this->gateway_address_list as $fd => $value) {
+            $tmp = unpack('Nhost/nport', $value);
+            $tmp['host'] = long2ip($tmp['host']);
+            $addresses[] = $tmp;
+        }
+        $addresses = json_encode($addresses);
+        Service::debug("broadcastGatewayAddressList fd:{$fd} addresses:{$addresses}");
     }
 }

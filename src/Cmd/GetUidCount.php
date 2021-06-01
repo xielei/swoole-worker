@@ -1,12 +1,13 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
+use Xielei\Swoole\Protocol;
 
 class GetUidCount implements CmdInterface
 {
@@ -25,7 +26,7 @@ class GetUidCount implements CmdInterface
         return unpack('Cread_uid_list', $buffer);
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $param = self::decode($buffer);
         $count = count($gateway->uid_list);
@@ -42,11 +43,9 @@ class GetUidCount implements CmdInterface
 
         $buffer = '';
         foreach (array_keys($uid_list) as $uid) {
-            $buffer .= pack('C', strlen((string)$uid)) . $uid;
+            $buffer .= pack('C', strlen((string) $uid)) . $uid;
         }
 
-        $conn->send(pack('NN', 8 + strlen($buffer), $count) . $buffer);
-
-        return true;
+        $conn->send(Protocol::encode(pack('N', $count) . $buffer));
     }
 }

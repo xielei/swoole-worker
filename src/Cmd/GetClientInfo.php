@@ -1,11 +1,11 @@
 <?php
 
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace Xielei\Swoole\Cmd;
 
 use Swoole\Coroutine\Server\Connection;
-use Xielei\Swoole\CmdInterface;
+use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Gateway;
 use Xielei\Swoole\Protocol;
 
@@ -26,7 +26,7 @@ class GetClientInfo implements CmdInterface
         return unpack('Nfd/Ctype', $buffer);
     }
 
-    public static function execute(Gateway $gateway, Connection $conn, string $buffer): bool
+    public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $data = self::decode($buffer);
         if (isset($gateway->fd_list[$data['fd']])) {
@@ -34,14 +34,13 @@ class GetClientInfo implements CmdInterface
         } else {
             $load = '';
         }
-        $conn->send(pack('NC', 5 + strlen($load), $data['type']) . $load);
-        return true;
+        $conn->send(Protocol::encode(pack('C', $data['type']) . $load));
     }
 
     public static function result(string $buffer): ?array
     {
-        $data = unpack('Nlen/Ctype', $buffer);
-        $load = substr($buffer, 5);
+        $data = unpack('Ctype', $buffer);
+        $load = substr($buffer, 1);
         if ($load) {
             return self::decodeClientBuffer($load, $data['type']);
         } else {
@@ -52,10 +51,9 @@ class GetClientInfo implements CmdInterface
     public static function encodeClientBuffer(Gateway $gateway, int $fd, int $type): string
     {
         $load = '';
-        $load .= pack('N', $fd);
         if (Protocol::CLIENT_INFO_UID & $type) {
             $uid = $gateway->fd_list[$fd]['uid'];
-            $load .= pack('n', strlen((string)$uid)) . $uid;
+            $load .= pack('n', strlen((string) $uid)) . $uid;
         }
         if (Protocol::CLIENT_INFO_SESSION & $type) {
             $session = serialize($gateway->fd_list[$fd]['session']);
@@ -64,17 +62,17 @@ class GetClientInfo implements CmdInterface
         if (Protocol::CLIENT_INFO_GROUP_LIST & $type) {
             $load .= pack('n', count($gateway->fd_list[$fd]['group_list']));
             foreach ($gateway->fd_list[$fd]['group_list'] as $value) {
-                $load .= pack('n', strlen((string)$value)) . $value;
+                $load .= pack('n', strlen((string) $value)) . $value;
             }
         }
         if (Protocol::CLIENT_INFO_REMOTE_IP & $type) {
-            $load .= pack('N', ip2long($gateway->getClientInfo($fd)['remote_ip']));
+            $load .= pack('N', ip2long($gateway->getServer()->getClientInfo($fd)['remote_ip']));
         }
         if (Protocol::CLIENT_INFO_REMOTE_PORT & $type) {
-            $load .= pack('n', $gateway->getClientInfo($fd)['remote_port']);
+            $load .= pack('n', $gateway->getServer()->getClientInfo($fd)['remote_port']);
         }
         if (Protocol::CLIENT_INFO_SYSTEM & $type) {
-            $info = serialize($gateway->getClientInfo($fd));
+            $info = serialize($gateway->getServer()->getClientInfo($fd));
             $load .= pack('N', strlen($info)) . $info;
         }
         return $load;
@@ -82,9 +80,7 @@ class GetClientInfo implements CmdInterface
 
     public static function decodeClientBuffer(string &$buffer, int $type): array
     {
-        $res = unpack('Nfd', $buffer);
-        $buffer = substr($buffer, 4);
-
+        $res = [];
         if ($type & Protocol::CLIENT_INFO_UID) {
             $t = unpack('nlen', $buffer);
             $buffer = substr($buffer, 2);
@@ -123,7 +119,6 @@ class GetClientInfo implements CmdInterface
             $res['system'] = unserialize(substr($buffer, 4, $t['len']));
             $buffer = substr($buffer, 4 + $t['len']);
         }
-
         return $res;
     }
 }
