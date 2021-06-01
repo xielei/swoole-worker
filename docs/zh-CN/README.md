@@ -29,7 +29,7 @@ worker接收gateway转发过来的请求，并执行工作任务
 
 只推荐composer方式安装，且确保您环境已经安装了swoole4
 
-``` cmd
+```cmd
 composer require xielei/swoole-worker
 ```
 
@@ -72,7 +72,7 @@ composer require xielei/swoole-worker
 
 ### Register服务
 
-``` php
+```php
 <?php
 
 declare(strict_types=1);
@@ -130,9 +130,100 @@ $worker = new Worker('127.0.0.1', 9327, 'this is secret_key..');
 
 $worker::$debug_mode = true;
 
-$worker->worker_file = __DIR__ . '/Event.php';
+$worker->worker_file = __DIR__ . '/WorkerEvent.php';
+$worker->task_file = __DIR__ . '/TaskEvent.php';
 
 $worker->start();
+```
+
+### 工作文件
+
+我们的主要开发文件就两个：工作进程和任务进程
+
+1. 工作进程
+
+工作进程是主要的业务逻辑
+
+> 类名必须为 WorkerEvent
+
+```php
+<?php
+
+declare (strict_types = 1);
+
+use Swoole\Timer;
+use Xielei\Swoole\Api;
+use Xielei\Swoole\Helper\WorkerEvent as HelperWorkerEvent;
+use Xielei\Swoole\Protocol;
+
+require_once __DIR__ . '/vendor/autoload.php';
+
+class WorkerEvent extends HelperWorkerEvent
+{
+    public function onWorkerStart()
+    {}
+
+    public function onWorkerExit()
+    {}
+
+    public function onWorkerStop()
+    {}
+
+    public function onFinish(int $task_id, $data)
+    {}
+
+    public function onPipeMessage(int $src_worker_id, $message)
+    {}
+
+    public function onConnect(string $client)
+    {}
+
+    public function onWebsocketConnect(string $client, array $global)
+    {}
+
+    public function onMessage(string $client, string $data)
+    {}
+
+    public function onClose(string $client, array $bind)
+    {}
+}
+```
+
+2. 任务进程
+
+可以没有任务进程，但是若有耗时或其他操作，可以从工作进程投递到任务进程处理，处理完毕后通知到工作进程
+
+> 类名必须为 TaskEvent
+
+```php
+<?php
+
+declare (strict_types = 1);
+
+use Swoole\Timer;
+use Xielei\Swoole\Api;
+use Xielei\Swoole\Helper\TaskEvent as HelperTaskEvent;
+use Xielei\Swoole\Protocol;
+
+require_once __DIR__ . '/vendor/autoload.php';
+
+class TaskEvent extends HelperTaskEvent
+{
+    public function onWorkerStart()
+    {}
+
+    public function onWorkerExit()
+    {}
+
+    public function onWorkerStop()
+    {}
+
+    public function onTask(int $task_id, int $src_worker_id, $data)
+    {}
+
+    public function onPipeMessage(int $src_worker_id, $message)
+    {}
+}
 ```
 
 [【开发文档】](https://www.ebcms.com/plugin/manual/home/manual?id=swooles-worker) [【Github】](http://www.github.com/xielei/swoole-worker)
