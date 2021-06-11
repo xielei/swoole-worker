@@ -35,8 +35,8 @@ Press [Ctrl+C] to exit, send 'help' to show help.
 
 ## Manual
 
-[【ENGLISH】](docs/en/README.md)
-[【简体中文】](docs/zh-CN/README.md)
+[【ENGLISH】](docs/en/)
+[【简体中文】](docs/zh-CN/)
 
 ## Usage scenarios
 
