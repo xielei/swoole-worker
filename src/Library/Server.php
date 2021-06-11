@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace Xielei\Swoole\Library;
 
@@ -31,11 +31,6 @@ class Server
             'package_length_offset' => 0,
             'package_body_offset' => 0,
 
-            'open_tcp_keepalive' => false,
-            // 'tcp_keepidle' => 6,
-            // 'tcp_keepinterval' => 1,
-            // 'tcp_keepcount' => 10,
-
             'heartbeat_idle_time' => 60,
             'heartbeat_check_interval' => 6,
         ]);
@@ -61,7 +56,7 @@ class Server
                 } else {
                     $this->emit('message', $conn, $buffer);
                 }
-                // Coroutine::sleep(0.01);
+                Coroutine::sleep(0.001);
             }
             Service::debug("server close5");
             $this->emit('close', $conn);

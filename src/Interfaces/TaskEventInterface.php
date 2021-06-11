@@ -1,34 +1,34 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace Xielei\Swoole\Interfaces;
 
 interface TaskEventInterface
 {
     /**
-     * on task worker start
+     * worker start
      *
      * @return void
      */
     public function onWorkerStart();
 
     /**
-     * on task worker stop
+     * worker stop
      *
      * @return void
      */
     public function onWorkerStop();
 
     /**
-     * on task worker exit
+     * worker exit
      *
      * @return void
      */
     public function onWorkerExit();
 
     /**
-     * on pipe message
+     * pipe message
      *
      * @param integer $src_worker_id
      * @param [mixed] $message
@@ -37,7 +37,7 @@ interface TaskEventInterface
     public function onPipeMessage(int $src_worker_id, $message);
 
     /**
-     * on task
+     * task
      *
      * @param integer $task_id
      * @param integer $src_worker_id

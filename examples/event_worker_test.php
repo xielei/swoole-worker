@@ -1,13 +1,11 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 use Swoole\Timer;
 use Xielei\Swoole\Api;
 use Xielei\Swoole\Helper\WorkerEvent as HelperWorkerEvent;
 use Xielei\Swoole\Protocol;
-
-require_once __DIR__ . '/vendor/autoload.php';
 
 class WorkerEvent extends HelperWorkerEvent
 {
@@ -31,7 +29,7 @@ class WorkerEvent extends HelperWorkerEvent
         echo "event onConnect {$client}\n";
     }
 
-    public function onMessage(string $client, string $data)
+    public function onReceive(string $client, string $data)
     {
         $session = json_encode($_SESSION);
         echo "event onMessage client:{$client} session:{$session} data:{$data}\n";

@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace Xielei\Swoole\Library;
 
@@ -44,8 +44,8 @@ class Client
 
     public function start()
     {
-        $this->emit('start', $this);
         Coroutine::create(function () {
+            $this->emit('start');
             $this->connect();
             while (!$this->stoped) {
                 $conn = $this->pool->get();
@@ -54,7 +54,7 @@ class Client
                     $conn->close(true);
                     $this->pool->put($conn);
                     Service::debug("close2 {$this->host}:{$this->port}");
-                    $this->emit('close', $this);
+                    $this->emit('close');
                 } elseif ($buffer === false) {
                     $errCode = $conn->errCode;
                     if ($errCode !== SOCKET_ETIMEDOUT) {
@@ -64,10 +64,10 @@ class Client
                         $this->pool->put($conn);
                     }
 
-                    $this->emit('error', $this, $errCode);
+                    $this->emit('error', $errCode);
                     if ($errCode !== SOCKET_ETIMEDOUT) {
                         Service::debug("close3 {$this->host}:{$this->port}");
-                        $this->emit('close', $this);
+                        $this->emit('close');
                     }
                 } elseif ($buffer) {
                     $this->pool->put($conn);
@@ -76,17 +76,17 @@ class Client
                     $conn->close(true);
                     $this->pool->put($conn);
                     Service::debug("close4 {$this->host}:{$this->port}");
-                    $this->emit('close', $this);
+                    $this->emit('close');
                 }
-                // Coroutine::sleep(0.001);
+                Coroutine::sleep(0.001);
             }
             $conn = $this->pool->get();
             if ($conn->isConnected()) {
                 $conn->close();
             }
             $this->pool->close();
-            $this->emit('close', $this);
-            $this->emit('stop', $this);
+            $this->emit('close');
+            $this->emit('stop');
         });
     }
 
@@ -107,13 +107,10 @@ class Client
             $len = $conn->send($buffer);
             if (strlen($buffer) === $len) {
                 $res = $conn->recv($timeout);
-
                 if ($res === '') {
                     $conn->close();
                 }
-
                 $this->pool->put($conn);
-
                 return $res;
             } else {
                 $this->pool->put($conn);
@@ -129,10 +126,11 @@ class Client
                 $conn->close(true);
                 $this->pool->put($conn);
                 Service::debug("close1 {$this->host}:{$this->port}");
-                $this->emit('close', $this);
+                $this->emit('close');
             } else {
+                Service::debug("connect success {$this->host}:{$this->port}");
                 $this->pool->put($conn);
-                $this->emit('connect', $this);
+                $this->emit('connect');
             }
         }
     }

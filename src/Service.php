@@ -1,24 +1,36 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace Xielei\Swoole;
 
-use Swoole\Client as SwooleClient;
 use Swoole\Process;
+use Swoole\Coroutine;
 use Swoole\Server as SwooleServer;
+use Xielei\Swoole\Library\Globals;
 
+/**
+ * @property Globals $globals
+ */
 abstract class Service extends Cli
 {
     protected $pid_file;
-    protected $log_file;
-    protected $inner_socket;
     protected $daemonize = false;
+
     protected $server;
+    protected $globals;
+
+    protected $events;
+
+    protected $reload_file;
 
     public static $debug_mode = false;
 
     protected $config = [];
+
+    public $auto_reload = false;
+    public $auto_reload_dir = [];
+    public $auto_reload_interval = 5;
 
     public function __construct()
     {
@@ -34,10 +46,12 @@ abstract class Service extends Cli
             exit("\n\033[1;31mError: Swoole >= 4.5.0, current version:" . SWOOLE_VERSION . "\033[0m\n\033[1;36m[Swoole](https://www.swoole.com/)\033[0m\n");
         }
 
-        $file = str_replace('/', '_', array_pop(debug_backtrace())['file']);
-        $this->pid_file = __DIR__ . '/../' . $file . '.pid';
-        $this->log_file = __DIR__ . '/../' . $file . '.log';
-        $this->inner_socket = '/var/run/' . $file . '.sock';
+        $this->pid_file = __DIR__ . '/../' . str_replace('/', '_', array_pop(debug_backtrace())['file']) . '.pid';
+
+        $this->set([
+            'log_file' => __DIR__ . '/../' . str_replace('/', '_', array_pop(debug_backtrace())['file']) . '.log',
+            'stats_file' => __DIR__ . '/../' . str_replace('/', '_', array_pop(debug_backtrace())['file']) . '.stats.log',
+        ]);
 
         $this->addCommand('start', 'start [-d]', 'start the service,\'-d\' daemonize mode', function (array $args): int {
             if ($this->isRun()) {
@@ -91,32 +105,7 @@ abstract class Service extends Cli
             $sig = SIGUSR1;
             Process::kill($pid, $sig);
             fwrite(STDOUT, "the service reload command sent successfully!\n");
-            fwrite(STDOUT, "you can view the results through the log file:\n");
-            fwrite(STDOUT, "'{$this->log_file}'.\n");
-            return self::PANEL_LISTEN;
-        });
-        $this->addCommand('status', 'status', 'displays the running status of the service', function (array $args): int {
-            if (!$this->isRun()) {
-                fwrite(STDOUT, "the service is not running!\n");
-                return self::PANEL_LISTEN;
-            }
-            $client = new SwooleClient(SWOOLE_UNIX_STREAM);
-            $client->set(array(
-                'open_length_check' => true,
-                'package_length_type' => 'N',
-                'package_length_offset' => 0,
-                'package_body_offset' => 0,
-            ));
-            if ($client->connect($this->inner_socket, 0)) {
-                $client->send(Protocol::encode(pack('C', Protocol::SERVER_STATUS)));
-                $buffer = $client->recv();
-                $res = json_decode(Protocol::decode($buffer), true);
-                foreach ($res as $key => $value) {
-                    fwrite(STDOUT, str_pad((string) $key, 25, '.', STR_PAD_RIGHT) . ' ' . $value . "\n");
-                }
-            } else {
-                fwrite(STDOUT, "connect failed. please try again..\n");
-            }
+            fwrite(STDOUT, "you can view the results through the log file.\n");
             return self::PANEL_LISTEN;
         });
         $this->addCommand('stop', 'stop [-f]', 'stop the service,\'-f\' force stop', function (array $args): int {
@@ -166,19 +155,69 @@ abstract class Service extends Cli
         });
     }
 
+    private function getFilesTime($path, &$files)
+    {
+        if (is_dir($path)) {
+            $dp = dir($path);
+            while ($file = $dp->read()) {
+                if ($file !== "." && $file !== "..") {
+                    $this->getFilesTime($path . "/" . $file, $files);
+                }
+            }
+            $dp->close();
+        }
+        if (is_file($path)) {
+            $files[$path] = filemtime($path);
+        }
+    }
+
     private function startServer()
     {
         cli_set_process_title(str_replace('/', '_', array_pop(debug_backtrace())['file']));
+        $server = $this->createServer();
+        $this->globals = new Globals();
+        $this->globals->mountTo($server);
+        if ($this->auto_reload) {
+            $server->addProcess(new Process(function () use ($server) {
+                $filetimes = [];
+                foreach ($this->auto_reload_dir as $dir) {
+                    $this->getFilesTime($dir, $filetimes);
+                }
+                while (true) {
+                    clearstatcache();
+                    $tmp_filetimes = [];
+                    foreach ($this->auto_reload_dir as $dir) {
+                        $this->getFilesTime($dir, $tmp_filetimes);
+                    }
+                    if ($tmp_filetimes != $filetimes) {
+                        $filetimes = $tmp_filetimes;
+                        $server->reload();
+                    }
+                    Coroutine::sleep($this->auto_reload_interval);
+                }
+            }, false, 1, true));
+        }
 
-        // SWOOLE_BASE SWOOLE_PROCESS
-        $server = new SwooleServer($this->inner_socket, 0, SWOOLE_PROCESS, SWOOLE_UNIX_STREAM);
-        $this->server = $server;
-        $this->init($server);
+        $server->on('WorkerStart', function (...$args) {
+            if ($this->reload_file) {
+                include $this->reload_file;
+            }
+            $this->emit('WorkerStart', ...$args);
+        });
+
+        foreach (['WorkerExit', 'WorkerStop', 'PipeMessage', 'Task', 'Finish', 'Connect', 'Receive', 'Close', 'Open', 'Message', 'Request', 'Packet'] as $event) {
+            $server->on($event, function (...$args) use ($event) {
+                $this->emit($event, ...$args);
+            });
+        }
 
         $server->set(array_merge([
+            'heartbeat_idle_time' => 60,
+            'heartbeat_check_interval' => 3,
+        ], $this->config, [
             'pid_file' => $this->pid_file,
-            'log_file' => $this->log_file,
             'daemonize' => $this->daemonize,
+
             'reload_async' => true,
             'max_wait_time' => 60,
 
@@ -186,29 +225,39 @@ abstract class Service extends Cli
             'package_length_type' => 'N',
             'package_length_offset' => 0,
             'package_body_offset' => 0,
-
-            'open_tcp_keepalive' => false,
-            // 'tcp_keepidle' => 6,
-            // 'tcp_keepinterval' => 1,
-            // 'tcp_keepcount' => 10,
-
-            'heartbeat_idle_time' => 60,
-            'heartbeat_check_interval' => 3,
-        ], $this->config));
-
+        ]));
+        $this->server = $server;
         $server->start();
     }
 
-    abstract protected function init(SwooleServer $server);
+    abstract protected function createServer(): SwooleServer;
+
+    public function set(array $config = [])
+    {
+        $this->config = array_merge($this->config, $config);
+    }
+
+    protected function emit(string $event, ...$args)
+    {
+        $event = strtolower('on' . $event);
+        Service::debug("emit {$event}");
+        call_user_func($this->events[$event] ?: function () {
+        }, ...$args);
+    }
+
+    protected function on(string $event, callable $callback)
+    {
+        $event = strtolower('on' . $event);
+        $this->events[$event] = $callback;
+    }
+
+    protected function has(string $event)
+    {
+    }
 
     public function getServer(): SwooleServer
     {
         return $this->server;
-    }
-
-    public function set(array $config = [])
-    {
-        $this->config = $config;
     }
 
     public static function debug(string $info)
@@ -218,7 +267,7 @@ abstract class Service extends Cli
         }
     }
 
-    private function isRun(): bool
+    protected function isRun(): bool
     {
         if (file_exists($this->pid_file)) {
             $pid = (int) file_get_contents($this->pid_file);

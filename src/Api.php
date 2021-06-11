@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace Xielei\Swoole;
 
@@ -74,7 +74,7 @@ class Api
     public static function sendToGroup(string $group, string $message, array $without_client_list = [])
     {
         foreach (self::$address_list as $address) {
-            self::sendToAddress($address, SendToGroup::encode($group, $message, (function () use ($address, $without_client_list): array{
+            self::sendToAddress($address, SendToGroup::encode($group, $message, (function () use ($address, $without_client_list): array {
                 $res = [];
                 foreach ($without_client_list as $client) {
                     $tmp = self::clientToAddress($client);
@@ -97,7 +97,7 @@ class Api
     public static function sendToAll(string $message, array $without_client_list = [])
     {
         foreach (self::$address_list as $address) {
-            self::sendToAddress($address, SendToAll::encode($message, (function () use ($address, $without_client_list): array{
+            self::sendToAddress($address, SendToAll::encode($message, (function () use ($address, $without_client_list): array {
                 $res = [];
                 foreach ($without_client_list as $client) {
                     $tmp = self::clientToAddress($client);

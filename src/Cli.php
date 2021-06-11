@@ -36,10 +36,10 @@ class Cli
 
     final public function start()
     {
-        fwrite(STDOUT, "\033[2J");
-        fwrite(STDOUT, "\033[0;0H");
+        fwrite(STDOUT, "\e[2J");
+        fwrite(STDOUT, "\e[0;0H");
         fwrite(STDOUT, "{$this->getLogo()}\n\n");
-        fwrite(STDOUT, "Press \033[1;33m[Ctrl+C]\033[0m to exit, send \033[1;33m'help'\033[0m to show help.\n");
+        fwrite(STDOUT, "Press \e[1;33m[Ctrl+C]\e[0m to exit, send \e[1;33m'help'\e[0m to show help.\n");
         $this->listen();
     }
 
@@ -54,7 +54,7 @@ class Cli
         $parse = $this->parseCmd($input);
 
         if (!isset($this->cmds[$parse['cmd']])) {
-            fwrite(STDOUT, "Command \033[1;34m'{$input}'\033[0m is not supported, send \033[1;34m'help'\033[0m to view help.\n");
+            fwrite(STDOUT, "Command \e[1;34m'{$input}'\e[0m is not supported, send \e[1;34m'help'\e[0m to view help.\n");
             return $this->listen();
         }
 
@@ -90,7 +90,7 @@ class Cli
         try {
             return call_user_func($this->cmds[$cmd]['callback'], $args);
         } catch (Throwable $th) {
-            $msg = "\033[1;31mFatal error: \033[0m Uncaught exception '" . get_class($th) . "' with message:\n";
+            $msg = "\e[1;31mFatal error: \e[0m Uncaught exception '" . get_class($th) . "' with message:\n";
             $msg .= "{$th->getMessage()}\n";
             $msg .= "thrown in {$th->getFile()} on line {$th->getLine()}\n";
             $msg .= "Trace:\n{$th->getTraceAsString()}\n";
@@ -102,12 +102,12 @@ class Cli
     final protected function getLogo(): string
     {
         return <<<str
-  \033[0;34m_____ \033[0m                   _  \033[0;34m __          __\033[0m        _
- \033[0;34m/ ____|\033[0m                  | |  \033[0;34m\ \        / /\033[0m       | |           \033[1;37m®\033[0m
-\033[0;34m| (___\033[0m__      _____   ___ | | __\033[0;34m\ \  /\  / /\033[0m__  _ __| | _____ _ __
- \033[0;34m\___\033[0m \ \ /\ / / _ \ / _ \| |/ _ \033[0;34m\ \/  \/ /\033[0m _ \| '__| |/ / _ \ '__|
-\033[0;34m ____)\033[0m \ V  V / (_) | (_) | |  __/\033[0;34m\  /\  /\033[0m (_) | |  |   <  __/ |
-\033[0;34m|_____/\033[0m \_/\_/ \___/ \___/|_|\___| \033[0;34m\/  \/\033[0m \___/|_|  |_|\_\___|_|
+  \e[0;34m_____ \e[0m                   _  \e[0;34m __          __\e[0m        _
+ \e[0;34m/ ____|\e[0m                  | |  \e[0;34m\ \        / /\e[0m       | |           \e[1;37m®\e[0m
+\e[0;34m| (___\e[0m__      _____   ___ | | __\e[0;34m\ \  /\  / /\e[0m__  _ __| | _____ _ __
+ \e[0;34m\___\e[0m \ \ /\ / / _ \ / _ \| |/ _ \e[0;34m\ \/  \/ /\e[0m _ \| '__| |/ / _ \ '__|
+\e[0;34m ____)\e[0m \ V  V / (_) | (_) | |  __/\e[0;34m\  /\  /\e[0m (_) | |  |   <  __/ |
+\e[0;34m|_____/\e[0m \_/\_/ \___/ \___/|_|\___| \e[0;34m\/  \/\e[0m \___/|_|  |_|\_\___|_|
 
 =================================================
 SwooleWorker is a distributed long connection
@@ -122,7 +122,7 @@ str;
     {
         $str = '';
         $str .= "****************************  HELP  ****************************\n";
-        $str .= "*\033[0;36m cmd                           description...\033[0m\n";
+        $str .= "*\e[0;36m cmd                           description...\e[0m\n";
         foreach ($this->cmds as $cmd => $opt) {
             $str .= '* ' . str_pad($opt['usage'], 30, ' ', STR_PAD_RIGHT) . $opt['help'] . "\n";
         }

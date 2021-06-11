@@ -1,34 +1,34 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace Xielei\Swoole\Interfaces;
 
 interface WorkerEventInterface
 {
     /**
-     * on worker start
+     * worker start
      *
      * @return void
      */
     public function onWorkerStart();
 
     /**
-     * on worker stop
+     * worker stop
      *
      * @return void
      */
     public function onWorkerStop();
 
     /**
-     * on worker exit
+     * worker exit
      *
      * @return void
      */
     public function onWorkerExit();
 
     /**
-     * on pipe message
+     * pipe message
      *
      * @param integer $src_worker_id
      * @param [mixed] $message
@@ -37,7 +37,7 @@ interface WorkerEventInterface
     public function onPipeMessage(int $src_worker_id, $message);
 
     /**
-     * on finish
+     * task finish
      *
      * @param integer $task_id
      * @param [mixed] $data
@@ -46,7 +46,7 @@ interface WorkerEventInterface
     public function onFinish(int $task_id, $data);
 
     /**
-     * client connect
+     * tcp connect
      *
      * @param string $client
      * @return void
@@ -54,25 +54,34 @@ interface WorkerEventInterface
     public function onConnect(string $client);
 
     /**
-     * on websocket connect
-     *
-     * @param string $client
-     * @param array $global
-     * @return void
-     */
-    public function onWebsocketConnect(string $client, array $global);
-
-    /**
-     * on client message
+     * tcp receive
      *
      * @param string $client
      * @param string $data
      * @return void
      */
-    public function onMessage(string $client, string $data);
+    public function onReceive(string $client, string $data);
 
     /**
-     * on client close
+     * websocket open
+     *
+     * @param string $client
+     * @param array $request
+     * @return void
+     */
+    public function onOpen(string $client, array $request);
+
+    /**
+     * websocket message
+     *
+     * @param string $client
+     * @param array $frame
+     * @return void
+     */
+    public function onMessage(string $client, array $frame);
+
+    /**
+     * tcp close
      *
      * @param string $client
      * @param array $bind

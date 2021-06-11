@@ -1,11 +1,10 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace Xielei\Swoole;
 
 use Exception;
-use Swoole\ConnectionPool;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Server\Connection;
 use Swoole\Process;
@@ -15,152 +14,222 @@ use Swoole\WebSocket\Server as WebSocketServer;
 use Xielei\Swoole\Interfaces\CmdInterface;
 use Xielei\Swoole\Library\Client;
 use Xielei\Swoole\Library\Server;
+use Xielei\Swoole\Library\SockServer;
 
 class Gateway extends Service
 {
-    public $init_file = __DIR__ . '/init/gateway.php';
+    public $reload_file = __DIR__ . '/reload/gateway.php';
+
+    public $register_host = '127.0.0.1';
+    public $register_port = 9327;
+    public $register_secret_key = '';
+
     public $lan_host = '127.0.0.1';
-    public $lan_port = 9018;
+    public $lan_port = 9108;
 
-    private $register_host;
-    private $register_port;
-    private $register_secret_key;
-    private $register_conn;
+    public $router;
 
-    private $listens = [];
-    private $cmd_list = [];
+    protected $inner_server;
 
-    private $router;
-
-    private $lan_server;
-    private $process;
+    protected $process;
+    protected $cmd_list = [];
 
     public $worker_pool_list = [];
     public $fd_list = [];
     public $uid_list = [];
     public $group_list = [];
 
-    public function __construct(string $register_host = '127.0.0.1', int $register_port = 9327, string $register_secret_key = '')
+    private $listen_list = [];
+
+    public function __construct()
     {
-        $this->register_host = $register_host;
-        $this->register_port = $register_port;
-        $this->register_secret_key = $register_secret_key;
         parent::__construct();
+
+        $this->router = function (int $fd, int $cmd) {
+            if ($this->worker_pool_list) {
+                return $this->worker_pool_list[array_keys($this->worker_pool_list)[$fd % count($this->worker_pool_list)]];
+            }
+        };
+
+        $this->inner_server = new SockServer(function (Connection $conn, $data) {
+            if (!is_array($data)) {
+                return;
+            }
+            switch (array_shift($data)) {
+                case 'status':
+                    $ret = $this->getServer()->stats() + $this->getServer()->setting + [
+                        'daemonize' => $this->daemonize,
+                        'register_host' => $this->register_host,
+                        'register_port' => $this->register_port,
+                        'register_secret_key' => $this->register_secret_key,
+                        'lan_host' => $this->lan_host,
+                        'lan_port' => $this->lan_port,
+                        'reload_file' => $this->reload_file,
+                        'listen_list' => json_encode($this->listen_list),
+                        'cmd_list' => (function (): string {
+                            $cmd_list = $this->cmd_list;
+                            foreach (glob(__DIR__ . '/Cmd/*.php') as $filename) {
+                                $cls_name = __NAMESPACE__ . '\\Cmd\\' . pathinfo($filename, PATHINFO_FILENAME);
+                                $cmd_list[$cls_name::getCommandCode()] = $cls_name;
+                            }
+                            return json_encode($cmd_list);
+                        })(),
+                    ];
+                    $ret['start_time'] = date(DATE_ISO8601, $ret['start_time']);
+                    SockServer::sendToConn($conn, $ret);
+                    break;
+
+                case 'reload':
+                    $this->getServer()->reload();
+                    break;
+
+                default:
+                    break;
+            }
+        }, '/var/run/' . str_replace('/', '_', array_pop(debug_backtrace())['file']) . '.sock');
+
+        $this->addCommand('status', 'status', 'displays the running status of the service', function (array $args): int {
+            if (!$this->isRun()) {
+                fwrite(STDOUT, "the service is not running!\n");
+                return self::PANEL_LISTEN;
+            }
+            $fp = stream_socket_client("unix://{$this->inner_server->getSockFile()}", $errno, $errstr);
+            if (!$fp) {
+                fwrite(STDOUT, "ERROR: $errno - $errstr\n");
+            } else {
+                fwrite($fp, Protocol::encode(serialize(['status'])));
+                $res = unserialize(Protocol::decode(fread($fp, 40960)));
+                foreach ($res as $key => $value) {
+                    fwrite(STDOUT, str_pad((string) $key, 25, '.', STR_PAD_RIGHT) . ' ' . $value . "\n");
+                }
+                fclose($fp);
+            }
+            return self::PANEL_LISTEN;
+        });
     }
 
-    protected function init(SwooleServer $server)
+    protected function createServer(): SwooleServer
     {
+        $server = new WebSocketServer('127.0.0.1', 0, SWOOLE_BASE);
 
-        $process = new Process(function ($process) use ($server) {
-            $this->startLanServer($this->lan_host, $this->lan_port);
-            $this->connectToRegister($this->lan_host, $this->lan_port);
-            $socket = $process->exportSocket();
-            while (true) {
-                $msg = $socket->recv();
-                if (!$msg) {
-                    continue;
-                }
-                $res = unserialize($msg);
-                switch ($res['event']) {
-                    case Protocol::CLIENT_CONNECT:
-                        $this->fd_list[$res['fd']] = [
-                            'uid' => '',
-                            'session' => [],
-                            'group_list' => [],
-                            'ws' => isset($server->getClientInfo($res['fd'])['websocket_status']),
-                        ];
-                        $session_string = serialize([]);
-                        $load = pack('CNN', Protocol::CLIENT_CONNECT, $res['fd'], strlen($session_string)) . $session_string;
-                        $this->sendToWorker(Protocol::CLIENT_CONNECT, $res['fd'], $load);
-                        break;
-
-                    case Protocol::CLIENT_MESSAGE:
-                        $bind = $this->fd_list[$res['fd']];
-                        $session_string = serialize($bind['session']);
-                        $load = pack('CNN', Protocol::CLIENT_MESSAGE, $res['fd'], strlen($session_string)) . $session_string . $res['message'];
-                        $this->sendToWorker(Protocol::CLIENT_MESSAGE, $res['fd'], $load);
-                        break;
-
-                    case Protocol::CLIENT_WEBSOCKET_CONNECT:
-                        $bind = $this->fd_list[$res['fd']];
-                        $session_string = serialize($bind['session']);
-                        $load = pack('CNN', Protocol::CLIENT_WEBSOCKET_CONNECT, $res['fd'], strlen($session_string)) . $session_string . serialize($res['extra']);
-                        $this->sendToWorker(Protocol::CLIENT_WEBSOCKET_CONNECT, $res['fd'], $load);
-                        break;
-
-                    case Protocol::CLIENT_CLOSE:
-                        $fd = $res['fd'];
-                        $bind = $this->fd_list[$fd];
-                        $bind['group_list'] = array_values($bind['group_list']);
-                        $session_string = serialize($bind['session']);
-                        unset($bind['session']);
-                        $load = pack('CNN', Protocol::CLIENT_CLOSE, $fd, strlen($session_string)) . $session_string . serialize($bind);
-                        $this->sendToWorker(Protocol::CLIENT_CLOSE, $fd, $load);
-
-                        if ($bind_uid = $this->fd_list[$fd]['uid']) {
-                            unset($this->uid_list[$bind_uid][$fd]);
-                            if (!$this->uid_list[$bind_uid]) {
-                                unset($this->uid_list[$bind_uid]);
-                            }
-                        }
-
-                        foreach ($this->fd_list[$fd]['group_list'] as $bind_group) {
-                            unset($this->group_list[$bind_group][$fd]);
-                            if (!$this->group_list[$bind_group]) {
-                                unset($this->group_list[$bind_group]);
-                            }
-                        }
-
-                        unset($this->fd_list[$fd]);
-                        break;
-
-                    default:
-                        # code...
-                        break;
-                }
-            }
-        }, false, 2, true);
-        $this->process = $process;
-        $server->addProcess($process);
-
-        $server->on('WorkerStart', function (...$args) {
-            include $this->init_file;
-            $this->emit('WorkerStart', ...$args);
-        });
-        foreach (['WorkerExit', 'WorkerStop', 'Connect', 'Receive', 'Close', 'Packet', 'Task', 'Finish', 'PipeMessage'] as $event) {
-            $server->on($event, function (...$args) use ($event) {
-                $this->emit($event, ...$args);
-            });
-        }
-
-        foreach ($this->listens as $listen) {
+        foreach ($this->listen_list as $listen) {
             $port = $server->addListener($listen['host'], $listen['port'], $listen['sockType']);
             $port->set($listen['options']);
-            foreach (['Connect', 'Receive', 'Close', 'Open', 'Message'] as $event) {
-                $port->on($event, function (...$args) use ($event) {
-                    $this->emit('Port' . $event, ...$args);
+            if (isset($listen['options']['open_websocket_protocol']) && $listen['options']['open_websocket_protocol']) {
+                $port->on('Connect', function () {
+                });
+                $port->on('Request', function ($request, $response) {
+                    $response->status(403);
+                    $response->end("Not Supported~\n");
                 });
             }
         }
+
+        $this->inner_server->mountTo($server);
+        $this->process = new Process(function ($process) use ($server) {
+            $this->connectToRegister();
+            $this->startLanServer();
+            Coroutine::create(function () use ($process) {
+                $socket = $process->exportSocket();
+                $socket->setProtocol([
+                    'open_length_check' => true,
+                    'package_length_type' => 'N',
+                    'package_length_offset' => 0,
+                    'package_body_offset' => 0,
+                ]);
+                while (true) {
+                    $buffer = $socket->recv();
+                    if (!$buffer) {
+                        continue;
+                    }
+                    $res = unserialize($buffer);
+                    switch ($res['event']) {
+                        case 'Connect':
+                            list($fd) = $res['args'];
+                            $this->fd_list[$fd] = [
+                                'uid' => '',
+                                'session' => [],
+                                'group_list' => [],
+                                'ws' => 0,
+                            ];
+                            $session_string = serialize([]);
+                            $load = pack('CNN', Protocol::EVENT_CONNECT, $fd, strlen($session_string)) . $session_string;
+                            $this->sendToWorker(Protocol::EVENT_CONNECT, $fd, $load);
+                            break;
+
+                        case 'Receive':
+                            list($fd, $reactorId,  $data) = $res['args'];
+                            $bind = $this->fd_list[$fd];
+                            $session_string = serialize($bind['session']);
+                            $load = pack('CNN', Protocol::EVENT_RECEIVE, $fd, strlen($session_string)) . $session_string . $data;
+                            $this->sendToWorker(Protocol::EVENT_RECEIVE, $fd, $load);
+                            break;
+
+                        case 'Close':
+                            list($fd) = $res['args'];
+                            if (!isset($this->fd_list[$fd])) {
+                                continue;
+                            }
+                            $bind = $this->fd_list[$fd];
+                            $bind['group_list'] = array_values($bind['group_list']);
+                            $session_string = serialize($bind['session']);
+                            unset($bind['session']);
+                            $load = pack('CNN', Protocol::EVENT_CLOSE, $fd, strlen($session_string)) . $session_string . serialize($bind);
+                            $this->sendToWorker(Protocol::EVENT_CLOSE, $fd, $load);
+
+                            if ($bind_uid = $this->fd_list[$fd]['uid']) {
+                                unset($this->uid_list[$bind_uid][$fd]);
+                                if (!$this->uid_list[$bind_uid]) {
+                                    unset($this->uid_list[$bind_uid]);
+                                }
+                            }
+
+                            foreach ($this->fd_list[$fd]['group_list'] as $bind_group) {
+                                unset($this->group_list[$bind_group][$fd]);
+                                if (!$this->group_list[$bind_group]) {
+                                    unset($this->group_list[$bind_group]);
+                                }
+                            }
+
+                            unset($this->fd_list[$fd]);
+                            break;
+
+                        case 'Open':
+                            list($request) = $res['args'];
+                            $this->fd_list[$request['fd']] = [
+                                'uid' => '',
+                                'session' => [],
+                                'group_list' => [],
+                                'ws' => 1,
+                            ];
+                            $session_string = serialize([]);
+                            $load = pack('CNN', Protocol::EVENT_OPEN, $request['fd'], strlen($session_string)) . $session_string . serialize($request);
+                            $this->sendToWorker(Protocol::EVENT_OPEN, $request['fd'], $load);
+                            break;
+
+                        case 'Message':
+                            list($frame) = $res['args'];
+                            $bind = $this->fd_list[$frame['fd']];
+                            $session_string = serialize($bind['session']);
+                            $load = pack('CNN', Protocol::EVENT_MESSAGE, $frame['fd'], strlen($session_string)) . $session_string . serialize($frame);
+                            $this->sendToWorker(Protocol::EVENT_MESSAGE, $frame['fd'], $load);
+                            break;
+
+                        default:
+                            Service::debug("undefined event. buffer:{$buffer}");
+                            break;
+                    }
+                    Coroutine::sleep(0.001);
+                }
+            });
+        }, false, 1, true);
+        $server->addProcess($this->process);
+        return $server;
     }
 
-    private function emit(string $event, ...$args)
+    public function listen(string $host, int $port, array $options = [], int $sockType = SWOOLE_SOCK_TCP)
     {
-        $event = strtolower('on' . $event);
-        Service::debug("{$event}");
-        call_user_func($this->$event ?: function () {}, ...$args);
-    }
-
-    private function on(string $event, callable $callback)
-    {
-        $event = strtolower('on' . $event);
-        $this->$event = $callback;
-    }
-
-    public function listen(string $host, int $port, int $sockType = SWOOLE_SOCK_TCP, array $options = [
-        'dispatch_mode' => 2,
-    ]) {
-        $this->listens[] = [
+        $this->listen_list[$host . ':' . $port] = [
             'host' => $host,
             'port' => $port,
             'sockType' => $sockType,
@@ -168,9 +237,32 @@ class Gateway extends Service
         ];
     }
 
-    private function sendToProcess($data)
+    protected function sendToProcess($data)
     {
         $this->process->exportSocket()->send(serialize($data));
+    }
+
+    public function sendToClient(int $fd, string $message)
+    {
+        if (isset($this->fd_list[$fd]['ws']) && $this->fd_list[$fd]['ws']) {
+            $this->getServer()->send($fd, WebSocketServer::pack($message));
+        } else {
+            $this->getServer()->send($fd, $message);
+        }
+    }
+
+    protected function sendToWorker(int $cmd, int $fd, string $load)
+    {
+        if ($pool = call_user_func($this->router, $fd, $cmd)) {
+            $conn = $pool->get();
+            $conn->send(Protocol::encode($load));
+            $pool->put($conn);
+
+            $buff = bin2hex(Protocol::encode($load));
+            Service::debug("send to worker:{$buff}");
+        } else {
+            Service::debug("worker not found");
+        }
     }
 
     public function registerCommand(string $cmd)
@@ -186,53 +278,13 @@ class Gateway extends Service
         }
     }
 
-    public function setRouter(callable $callback)
+    protected function startLanServer()
     {
-        $this->router = $callback;
-    }
-
-    public function getWorkerPool(int $fd, int $cmd): ?ConnectionPool
-    {
-        if ($this->router) {
-            return call_user_func($this->router, $this->worker_pool_list, $fd, $cmd);
+        foreach (glob(__DIR__ . '/Cmd/*.php') as $filename) {
+            $this->registerCommand(__NAMESPACE__ . '\\Cmd\\' . pathinfo($filename, PATHINFO_FILENAME));
         }
-        $worker_pool_list = $this->worker_pool_list;
-        if ($worker_pool_list) {
-            return $worker_pool_list[array_keys($worker_pool_list)[$fd % count($worker_pool_list)]];
-        }
-        return null;
-    }
-
-    public function sendToClient(int $fd, string $message)
-    {
-        if (isset($this->fd_list[$fd]['ws']) && $this->fd_list[$fd]['ws']) {
-            $this->getServer()->send($fd, WebSocketServer::pack($message));
-        } else {
-            $this->getServer()->send($fd, $message);
-        }
-    }
-
-    private function sendToWorker(int $cmd, int $fd, string $load = '')
-    {
-        if ($pool = $this->getWorkerPool($fd, $cmd)) {
-            $buff = bin2hex(Protocol::encode($load));
-            Service::debug("send to worker:{$buff}");
-
-            $conn = $pool->get();
-            $conn->send(Protocol::encode($load));
-            $pool->put($conn);
-        } else {
-            Service::debug("not found worker");
-        }
-    }
-
-    private function startLanServer(string $host, int $port)
-    {
-        foreach (glob(__DIR__ . '/Cmd/*.php') as $p) {
-            $this->registerCommand(__NAMESPACE__ . '\\Cmd\\' . pathinfo($p, PATHINFO_FILENAME));
-        }
-
-        $server = new Server($host, $port);
+        Service::debug('start to startLanServer');
+        $server = new Server($this->lan_host, $this->lan_port);
         $server->onConnect = function (Connection $conn) {
             $conn->peername = $conn->exportSocket()->getpeername();
         };
@@ -259,16 +311,16 @@ class Gateway extends Service
                 Service::debug("close no reg worker client {$address}");
             }
         };
-        $this->lan_server = $server;
         $server->start();
     }
 
-    private function connectToRegister(string $lan_host, int $lan_port)
+    protected function connectToRegister()
     {
+        Service::debug('start to connectToRegister');
         $client = new Client($this->register_host, $this->register_port);
-        $client->onConnect = function (Client $client) use ($lan_host, $lan_port) {
+        $client->onConnect = function () use ($client) {
             Service::debug('reg to register');
-            $client->send(Protocol::encode(pack('CNn', Protocol::GATEWAY_CONNECT, ip2long($lan_host), $lan_port) . $this->register_secret_key));
+            $client->send(Protocol::encode(pack('CNn', Protocol::GATEWAY_CONNECT, ip2long($this->lan_host), $this->lan_port) . $this->register_secret_key));
 
             $ping_buffer = Protocol::encode(pack('C', Protocol::PING));
             $client->timer_id = Timer::tick(30000, function () use ($client, $ping_buffer) {
@@ -276,7 +328,7 @@ class Gateway extends Service
                 $client->send($ping_buffer);
             });
         };
-        $client->onClose = function (Client $client) {
+        $client->onClose = function () use ($client) {
             Service::debug('close by register');
             if ($client->timer_id) {
                 Timer::clear($client->timer_id);
@@ -286,7 +338,6 @@ class Gateway extends Service
             Service::debug("reconnect to register");
             $client->connect();
         };
-        $this->register_conn = $client;
         $client->start();
     }
 }

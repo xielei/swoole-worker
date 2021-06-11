@@ -1,85 +1,125 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace Xielei\Swoole;
 
+use Swoole\Coroutine\Server\Connection;
 use Swoole\Server;
+use Xielei\Swoole\Library\SockServer;
 
 class Register extends Service
 {
-    public $init_file = __DIR__ . '/init/register.php';
+    public $reload_file = __DIR__ . '/reload/register.php';
 
-    private $host;
-    private $port;
-    private $secret_key;
+    protected $inner_server;
 
-    private $gateway_address_list = [];
-    private $worker_fd_list = [];
+    protected $register_host;
+    protected $register_port;
+    protected $register_secret_key;
 
-    public function __construct(string $host = '127.0.0.1', int $port = 9327, string $secret_key = '')
+    public function __construct(string $register_host = '127.0.0.1', int $register_port = 9327, string $register_secret_key = '')
     {
         parent::__construct();
 
-        $this->host = $host;
-        $this->port = $port;
-        $this->secret_key = $secret_key;
-    }
+        $this->register_host = $register_host;
+        $this->register_port = $register_port;
+        $this->register_secret_key = $register_secret_key;
 
-    protected function init(Server $server)
-    {
-        $this->set([
-            'worker_num' => 1,
-        ]);
-        $server->on('WorkerStart', function (...$args) {
-            include $this->init_file;
-            $this->emit('WorkerStart', ...$args);
+        $this->inner_server = new SockServer(function (Connection $conn, $data) {
+            if (!is_array($data)) {
+                return;
+            }
+            switch (array_shift($data)) {
+                case 'status':
+                    $ret = $this->getServer()->stats() + $this->getServer()->setting + [
+                        'daemonize' => $this->daemonize,
+                        'register_host' => $this->register_host,
+                        'register_port' => $this->register_port,
+                        'register_secret_key' => $this->register_secret_key,
+                        'reload_file' => $this->reload_file,
+                        'worker_count' => count($this->globals->get('worker_fd_list', [])),
+                        'worker_list' => (function (): string {
+                            $res = [];
+                            foreach ($this->globals->get('worker_fd_list', []) as $fd) {
+                                $res[$fd] = $this->getServer()->getClientInfo($fd);
+                            }
+                            return json_encode($res);
+                        })(),
+                        'gateway_count' => count($this->globals->get('gateway_address_list', [])),
+                        'gateway_list' => (function () {
+                            $res = [];
+                            foreach ($this->globals->get('gateway_address_list', []) as $fd => $value) {
+                                $tmp = unpack('Nlan_host/nlan_port', $value);
+                                $tmp['lan_host'] = long2ip($tmp['lan_host']);
+                                $res[$fd] = array_merge($this->getServer()->getClientInfo($fd), $tmp);
+                            }
+                            return json_encode($res);
+                        })(),
+                    ];
+                    $ret['start_time'] = date(DATE_ISO8601, $ret['start_time']);
+                    SockServer::sendToConn($conn, $ret);
+                    break;
+
+                case 'reload':
+                    $this->getServer()->reload();
+                    break;
+
+                default:
+                    break;
+            }
+        }, '/var/run/' . str_replace('/', '_', array_pop(debug_backtrace())['file']) . '.sock');
+
+        $this->addCommand('status', 'status', 'displays the running status of the service', function (array $args): int {
+            if (!$this->isRun()) {
+                fwrite(STDOUT, "the service is not running!\n");
+                return self::PANEL_LISTEN;
+            }
+            $fp = stream_socket_client("unix://{$this->inner_server->getSockFile()}", $errno, $errstr);
+            if (!$fp) {
+                fwrite(STDOUT, "ERROR: $errno - $errstr\n");
+            } else {
+                fwrite($fp, Protocol::encode(serialize(['status'])));
+                $res = unserialize(Protocol::decode(fread($fp, 40960)));
+                foreach ($res as $key => $value) {
+                    fwrite(STDOUT, str_pad((string) $key, 25, '.', STR_PAD_RIGHT) . ' ' . $value . "\n");
+                }
+                fclose($fp);
+            }
+            return self::PANEL_LISTEN;
         });
-        foreach (['WorkerExit', 'WorkerStop', 'Connect', 'Receive', 'Close', 'Packet', 'Task', 'Finish', 'PipeMessage'] as $event) {
-            $server->on($event, function (...$args) use ($event) {
-                $this->emit($event, ...$args);
-            });
-        }
-        $port = $server->listen($this->host, $this->port, SWOOLE_SOCK_TCP);
-        foreach (['Connect', 'Receive', 'Close'] as $event) {
-            $port->on($event, function (...$args) use ($event) {
-                $this->emit('Port' . $event, ...$args);
-            });
-        }
     }
 
-    private function emit(string $event, ...$args)
+    protected function createServer(): Server
     {
-        $event = strtolower('on' . $event);
-        Service::debug("{$event}");
-        call_user_func($this->$event ?: function () {}, ...$args);
+        $server = new Server($this->register_host, $this->register_port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+        $this->inner_server->mountTo($server);
+        return $server;
     }
 
-    private function on(string $event, callable $callback)
+    protected function broadcastGatewayAddressList(int $fd = null)
     {
-        $event = strtolower('on' . $event);
-        $this->$event = $callback;
-    }
-
-    private function broadcastGatewayAddressList(int $fd = null)
-    {
-        $load = pack('C', Protocol::BROADCAST_GATEWAY_ADDRESS_LIST) . implode('', $this->gateway_address_list);
+        $load = pack('C', Protocol::BROADCAST_GATEWAY_ADDRESS_LIST) . implode('', $this->globals->get('gateway_address_list', []));
         $buffer = Protocol::encode($load);
         if ($fd) {
             $this->getServer()->send($fd, $buffer);
         } else {
-            foreach ($this->worker_fd_list as $fd => $info) {
+            foreach ($this->globals->get('worker_fd_list', []) as $fd => $info) {
                 $this->getServer()->send($fd, $buffer);
             }
         }
 
         $addresses = [];
-        foreach ($this->gateway_address_list as $fd => $value) {
+        foreach ($this->globals->get('gateway_address_list', []) as $value) {
             $tmp = unpack('Nhost/nport', $value);
             $tmp['host'] = long2ip($tmp['host']);
             $addresses[] = $tmp;
         }
         $addresses = json_encode($addresses);
-        Service::debug("broadcastGatewayAddressList fd:{$fd} addresses:{$addresses}");
+        if ($fd) {
+            Service::debug("broadcastGatewayAddressList fd:{$fd} addresses:{$addresses}");
+        } else {
+            Service::debug("broadcastGatewayAddressList addresses:{$addresses}");
+        }
     }
 }

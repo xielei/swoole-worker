@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace Xielei\Swoole;
 
@@ -9,24 +9,15 @@ use Exception;
 class Protocol
 {
     const PING = 0;
-
     const GATEWAY_CONNECT = 1;
-
     const WORKER_CONNECT = 2;
+    const BROADCAST_GATEWAY_ADDRESS_LIST = 3;
 
-    const BROADCAST_GATEWAY_ADDRESS_LIST = 5;
-
-    const SERVER_RELOAD = 6;
-
-    const SERVER_STATUS = 7;
-
-    const CLIENT_CONNECT = 10;
-
-    const CLIENT_WEBSOCKET_CONNECT = 11;
-
-    const CLIENT_MESSAGE = 12;
-
-    const CLIENT_CLOSE = 13;
+    const EVENT_CONNECT = 20;
+    const EVENT_RECEIVE = 21;
+    const EVENT_CLOSE = 22;
+    const EVENT_OPEN = 23;
+    const EVENT_MESSAGE = 24;
 
     const CLIENT_INFO_REMOTE_IP = 0b00000001;
     const CLIENT_INFO_REMOTE_PORT = 0b00000010;
