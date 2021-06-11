@@ -110,7 +110,7 @@ class Gateway extends Service
 
     protected function createServer(): SwooleServer
     {
-        $server = new WebSocketServer('127.0.0.1', 0, SWOOLE_BASE);
+        $server = new WebSocketServer('127.0.0.1', 0, SWOOLE_PROCESS);
 
         foreach ($this->listen_list as $listen) {
             $port = $server->addListener($listen['host'], $listen['port'], $listen['sockType']);
@@ -222,7 +222,7 @@ class Gateway extends Service
                     Coroutine::sleep(0.001);
                 }
             });
-        }, false, 1, true);
+        }, false, 2, true);
         $server->addProcess($this->process);
         return $server;
     }

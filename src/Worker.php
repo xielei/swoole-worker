@@ -159,7 +159,7 @@ class Worker extends Service
         };
         $client->onClose = function () use ($client) {
             Service::debug("closed by register");
-            if ($client->timer_id) {
+            if (isset($client->timer_id)) {
                 Timer::clear($client->timer_id);
                 unset($client->timer_id);
             }
@@ -190,10 +190,10 @@ class Worker extends Service
                     'event' => 'gateway_event',
                     'buffer' => $buffer,
                     'address' => $address,
-                ]), $address['port'] % $this->getServer()->setting['worker_num']);
+                ]), $address['lan_port'] % $this->getServer()->setting['worker_num']);
             };
             $client->onClose = function () use ($client, $address) {
-                if ($client->timer_id) {
+                if (isset($client->timer_id)) {
                     Timer::clear($client->timer_id);
                     unset($client->timer_id);
                 }

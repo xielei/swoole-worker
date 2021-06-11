@@ -195,7 +195,7 @@ abstract class Service extends Cli
                     }
                     Coroutine::sleep($this->auto_reload_interval);
                 }
-            }, false, 1, true));
+            }, false, 2, true));
         }
 
         $server->on('WorkerStart', function (...$args) {
