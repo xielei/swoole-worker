@@ -48,11 +48,6 @@ abstract class Service extends Cli
 
         $this->pid_file = __DIR__ . '/../' . str_replace('/', '_', array_pop(debug_backtrace())['file']) . '.pid';
 
-        $this->set([
-            'log_file' => __DIR__ . '/../' . str_replace('/', '_', array_pop(debug_backtrace())['file']) . '.log',
-            'stats_file' => __DIR__ . '/../' . str_replace('/', '_', array_pop(debug_backtrace())['file']) . '.stats.log',
-        ]);
-
         $this->addCommand('start', 'start [-d]', 'start the service,\'-d\' daemonize mode', function (array $args): int {
             if ($this->isRun()) {
                 fwrite(STDOUT, "the service is running, please run restart if you want to restart service.\n");
@@ -211,20 +206,17 @@ abstract class Service extends Cli
             });
         }
 
-        $server->set(array_merge([
-            'heartbeat_idle_time' => 60,
-            'heartbeat_check_interval' => 3,
-        ], $this->config, [
+        $server->set(array_merge($this->config, [
             'pid_file' => $this->pid_file,
             'daemonize' => $this->daemonize,
+            'event_object' => true,
+            'task_object' => true,
 
             'reload_async' => true,
             'max_wait_time' => 60,
 
-            'open_length_check' => true,
-            'package_length_type' => 'N',
-            'package_length_offset' => 0,
-            'package_body_offset' => 0,
+            'enable_coroutine' => true,
+            'task_enable_coroutine' => true,
         ]));
         $this->server = $server;
         $server->start();
@@ -249,10 +241,6 @@ abstract class Service extends Cli
     {
         $event = strtolower('on' . $event);
         $this->events[$event] = $callback;
-    }
-
-    protected function has(string $event)
-    {
     }
 
     public function getServer(): SwooleServer

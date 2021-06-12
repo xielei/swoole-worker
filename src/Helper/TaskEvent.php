@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Xielei\Swoole\Helper;
 
+use Swoole\Server\PipeMessage;
+use Swoole\Server\Task;
 use Xielei\Swoole\Interfaces\TaskEventInterface;
 use Xielei\Swoole\Worker;
 
@@ -28,11 +30,11 @@ class TaskEvent implements TaskEventInterface
     {
     }
 
-    public function onTask(int $task_id, int $src_worker_id, $data)
+    public function onTask(Task $task)
     {
     }
 
-    public function onPipeMessage(int $src_worker_id, $message)
+    public function onPipeMessage(PipeMessage $pipeMessage)
     {
     }
 }

@@ -17,9 +17,7 @@ $worker->task_file = __DIR__ . '/event_task.php';
 
 $worker->set([
     'worker_num' => 2,
-    'enable_coroutine' => true,
     'task_worker_num' => 2,
-    'task_enable_coroutine' => true,
     'log_file ' => __DIR__ . '/worker.log',
     'stats_file ' => __DIR__ . '/worker.stats.log',
 ]);

@@ -145,53 +145,53 @@ class Gateway extends Service
                     $res = unserialize($buffer);
                     switch ($res['event']) {
                         case 'Connect':
-                            list($fd) = $res['args'];
-                            $this->fd_list[$fd] = [
+                            list($event) = $res['args'];
+                            $this->fd_list[$event['fd']] = [
                                 'uid' => '',
                                 'session' => [],
                                 'group_list' => [],
                                 'ws' => 0,
                             ];
-                            $session_string = serialize([]);
-                            $load = pack('CNN', Protocol::EVENT_CONNECT, $fd, strlen($session_string)) . $session_string;
-                            $this->sendToWorker(Protocol::EVENT_CONNECT, $fd, $load);
+                            $session_string = '';
+                            $load = pack('CNN', Protocol::EVENT_CONNECT, $event['fd'], strlen($session_string)) . $session_string;
+                            $this->sendToWorker(Protocol::EVENT_CONNECT, $event['fd'], $load);
                             break;
 
                         case 'Receive':
-                            list($fd, $reactorId,  $data) = $res['args'];
-                            $bind = $this->fd_list[$fd];
-                            $session_string = serialize($bind['session']);
-                            $load = pack('CNN', Protocol::EVENT_RECEIVE, $fd, strlen($session_string)) . $session_string . $data;
-                            $this->sendToWorker(Protocol::EVENT_RECEIVE, $fd, $load);
+                            list($event) = $res['args'];
+                            $bind = $this->fd_list[$event['fd']];
+                            $session_string = $bind['session'] ? serialize($bind['session']) : '';
+                            $load = pack('CNN', Protocol::EVENT_RECEIVE, $event['fd'], strlen($session_string)) . $session_string . $event['data'];
+                            $this->sendToWorker(Protocol::EVENT_RECEIVE, $event['fd'], $load);
                             break;
 
                         case 'Close':
-                            list($fd) = $res['args'];
-                            if (!isset($this->fd_list[$fd])) {
-                                continue;
+                            list($event) = $res['args'];
+                            if (!isset($this->fd_list[$event['fd']])) {
+                                break;
                             }
-                            $bind = $this->fd_list[$fd];
+                            $bind = $this->fd_list[$event['fd']];
                             $bind['group_list'] = array_values($bind['group_list']);
-                            $session_string = serialize($bind['session']);
+                            $session_string = $bind['session'] ? serialize($bind['session']) : '';
                             unset($bind['session']);
-                            $load = pack('CNN', Protocol::EVENT_CLOSE, $fd, strlen($session_string)) . $session_string . serialize($bind);
-                            $this->sendToWorker(Protocol::EVENT_CLOSE, $fd, $load);
+                            $load = pack('CNN', Protocol::EVENT_CLOSE, $event['fd'], strlen($session_string)) . $session_string . serialize($bind);
+                            $this->sendToWorker(Protocol::EVENT_CLOSE, $event['fd'], $load);
 
-                            if ($bind_uid = $this->fd_list[$fd]['uid']) {
-                                unset($this->uid_list[$bind_uid][$fd]);
+                            if ($bind_uid = $this->fd_list[$event['fd']]['uid']) {
+                                unset($this->uid_list[$bind_uid][$event['fd']]);
                                 if (!$this->uid_list[$bind_uid]) {
                                     unset($this->uid_list[$bind_uid]);
                                 }
                             }
 
-                            foreach ($this->fd_list[$fd]['group_list'] as $bind_group) {
-                                unset($this->group_list[$bind_group][$fd]);
+                            foreach ($this->fd_list[$event['fd']]['group_list'] as $bind_group) {
+                                unset($this->group_list[$bind_group][$event['fd']]);
                                 if (!$this->group_list[$bind_group]) {
                                     unset($this->group_list[$bind_group]);
                                 }
                             }
 
-                            unset($this->fd_list[$fd]);
+                            unset($this->fd_list[$event['fd']]);
                             break;
 
                         case 'Open':
@@ -202,7 +202,7 @@ class Gateway extends Service
                                 'group_list' => [],
                                 'ws' => 1,
                             ];
-                            $session_string = serialize([]);
+                            $session_string = '';
                             $load = pack('CNN', Protocol::EVENT_OPEN, $request['fd'], strlen($session_string)) . $session_string . serialize($request);
                             $this->sendToWorker(Protocol::EVENT_OPEN, $request['fd'], $load);
                             break;
@@ -210,8 +210,8 @@ class Gateway extends Service
                         case 'Message':
                             list($frame) = $res['args'];
                             $bind = $this->fd_list[$frame['fd']];
-                            $session_string = serialize($bind['session']);
-                            $load = pack('CNN', Protocol::EVENT_MESSAGE, $frame['fd'], strlen($session_string)) . $session_string . serialize($frame);
+                            $session_string = $bind['session'] ? serialize($bind['session']) : '';
+                            $load = pack('CNN', Protocol::EVENT_MESSAGE, $frame['fd'], strlen($session_string)) . $session_string . pack('CC', $frame['opcode'], $frame['flags']) . $frame['data'];
                             $this->sendToWorker(Protocol::EVENT_MESSAGE, $frame['fd'], $load);
                             break;
 

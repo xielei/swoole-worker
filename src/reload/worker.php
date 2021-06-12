@@ -2,7 +2,9 @@
 
 use function Composer\Autoload\includeFile;
 use Swoole\Server;
+use Swoole\Server\PipeMessage;
 use Xielei\Swoole\Api;
+use Xielei\Swoole\Service;
 use Xielei\Swoole\Worker;
 
 /**
@@ -22,11 +24,11 @@ $this->on('WorkerStart', function (Server $server, int $worker_id, ...$args) {
         includeFile($this->worker_file);
         $this->event = new \WorkerEvent($this);
     }
-    call_user_func([$this->event, 'onWorkerStart'], $server, $worker_id, ...$args);
+    $this->dispatch('onWorkerStart', $worker_id, ...$args);
 });
-$this->on('PipeMessage', function (Server $server, int $src_worker_id, $message) {
-    if ($src_worker_id >= $server->setting['worker_num'] + $server->setting['task_worker_num']) {
-        $data = unserialize($message);
+$this->on('PipeMessage', function (Server $server, PipeMessage $pipeMessage, ...$args) {
+    if ($pipeMessage->worker_id >= $server->setting['worker_num'] + $server->setting['task_worker_num']) {
+        $data = unserialize($pipeMessage->data);
         switch ($data['event']) {
             case 'gateway_address_list':
                 $this->gateway_address_list = $data['gateway_address_list'];
@@ -35,22 +37,23 @@ $this->on('PipeMessage', function (Server $server, int $src_worker_id, $message)
                 $this->onGatewayMessage($data['buffer'], $data['address']);
                 break;
             default:
+                Service::debug("PipeMessage event not found~ data:{$pipeMessage->data}");
                 break;
         }
     } else {
-        call_user_func([$this->event, 'onPipeMessage'], $server, $src_worker_id, $message);
+        $this->dispatch('onPipeMessage', $pipeMessage, ...$args);
     }
 });
 
-$this->on('WorkerExit', function (...$args) {
-    call_user_func([$this->event, 'onWorkerExit'], ...$args);
+$this->on('WorkerExit', function (Server $server, ...$args) {
+    $this->dispatch('onWorkerExit', ...$args);
 });
-$this->on('WorkerStop', function (...$args) {
-    call_user_func([$this->event, 'onWorkerStop'], ...$args);
+$this->on('WorkerStop', function (Server $server, ...$args) {
+    $this->dispatch('onWorkerStop', ...$args);
 });
-$this->on('Task', function (...$args) {
-    call_user_func([$this->event, 'onTask'], ...$args);
+$this->on('Task', function (Server $server, ...$args) {
+    $this->dispatch('onTask', ...$args);
 });
-$this->on('Finish', function (...$args) {
-    call_user_func([$this->event, 'onFinish'], ...$args);
+$this->on('Finish', function (Server $server, ...$args) {
+    $this->dispatch('onFinish', ...$args);
 });

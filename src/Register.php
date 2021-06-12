@@ -94,6 +94,15 @@ class Register extends Service
     {
         $server = new Server($this->register_host, $this->register_port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
         $this->inner_server->mountTo($server);
+        $this->set([
+            'heartbeat_idle_time' => 60,
+            'heartbeat_check_interval' => 3,
+
+            'open_length_check' => true,
+            'package_length_type' => 'N',
+            'package_length_offset' => 0,
+            'package_body_offset' => 0,
+        ]);
         return $server;
     }
 

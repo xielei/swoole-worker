@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Xielei\Swoole\Helper;
 
+use Swoole\Server\PipeMessage;
+use Swoole\Server\TaskResult;
 use Xielei\Swoole\Interfaces\WorkerEventInterface;
 use Xielei\Swoole\Worker;
 
@@ -28,11 +30,11 @@ class WorkerEvent implements WorkerEventInterface
     {
     }
 
-    public function onFinish(int $task_id, $data)
+    public function onFinish(TaskResult $taskResult)
     {
     }
 
-    public function onPipeMessage(int $src_worker_id, $message)
+    public function onPipeMessage(PipeMessage $pipeMessage)
     {
     }
 

@@ -86,6 +86,7 @@ class Worker extends Service
     protected function createServer(): SwooleServer
     {
         $server = new SwooleServer('127.0.0.1', 0, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+
         $this->inner_server->mountTo($server);
         $this->process = new Process(function ($process) {
             $this->connectToRegister();
@@ -108,6 +109,14 @@ class Worker extends Service
             }
         }, false, 2, true);
         $server->addProcess($this->process);
+        if (!isset($this->config['task_worker_num'])) {
+            $this->set([
+                'task_worker_num' => swoole_cpu_num()
+            ]);
+        }
+        $this->set([
+            'task_enable_coroutine' => true,
+        ]);
         return $server;
     }
 
@@ -212,33 +221,41 @@ class Worker extends Service
         }
     }
 
+    protected function dispatch(string $event, ...$args)
+    {
+        Service::debug("dispatch {$event}");
+        call_user_func([$this->event, $event], ...$args);
+    }
+
     protected function onGatewayMessage($buffer, $address)
     {
         $data = unpack('Ccmd/Nfd/Nsession_len/A*data', Protocol::decode($buffer));
 
-        $_SESSION = unserialize(substr($data['data'], 0, $data['session_len']));
+        $_SESSION = $data['session_len'] ? unserialize(substr($data['data'], 0, $data['session_len'])) : [];
         $extra = substr($data['data'], $data['session_len']);
         $client = bin2hex(pack('NnN', ip2long($address['lan_host']), $address['lan_port'], $data['fd']));
         switch ($data['cmd']) {
 
             case Protocol::EVENT_CONNECT:
-                call_user_func([$this->event, 'onConnect'], $client);
+                $this->dispatch('onConnect', $client);
                 break;
 
             case Protocol::EVENT_RECEIVE:
-                call_user_func([$this->event, 'onReceive'], $client, $extra);
+                $this->dispatch('onReceive', $client, $extra);
                 break;
 
             case Protocol::EVENT_CLOSE:
-                call_user_func([$this->event, 'onClose'], $client, unserialize($extra));
+                $this->dispatch('onClose', $client, unserialize($extra));
                 break;
 
             case Protocol::EVENT_OPEN:
-                call_user_func([$this->event, 'onOpen'], $client, unserialize($extra));
+                $this->dispatch('onOpen', $client, unserialize($extra));
                 break;
 
             case Protocol::EVENT_MESSAGE:
-                call_user_func([$this->event, 'onMessage'], $client, unserialize($extra));
+                $frame = unpack('Copcode/Cflags', $extra);
+                $frame['data'] = substr($extra, 2);
+                $this->dispatch('onMessage', $client, $frame);
                 break;
 
             default:
