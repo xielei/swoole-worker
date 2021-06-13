@@ -57,7 +57,9 @@ class Gateway extends Service
             }
             switch (array_shift($data)) {
                 case 'status':
-                    $ret = $this->getServer()->stats() + $this->getServer()->setting + [
+                    $ret = [
+                        'sw_version' => SW_VERSION,
+                    ] + $this->getServer()->stats() + $this->getServer()->setting + [
                         'daemonize' => $this->daemonize,
                         'register_host' => $this->register_host,
                         'register_port' => $this->register_port,

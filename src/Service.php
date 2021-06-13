@@ -9,6 +9,8 @@ use Swoole\Coroutine;
 use Swoole\Server as SwooleServer;
 use Xielei\Swoole\Library\Globals;
 
+define('SW_VERSION', 'dev-main');
+
 /**
  * @property Globals $globals
  */
