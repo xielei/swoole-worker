@@ -38,14 +38,6 @@ Press [Ctrl+C] to exit, send 'help' to show help.
 [【ENGLISH】](docs/en/)
 [【简体中文】](docs/zh-CN/)
 
-## Usage scenarios
-
-1. Push
-2. IOT
-3. IM
-4. Games
-5. Others
-
 ## Install
 
 ``` bash
