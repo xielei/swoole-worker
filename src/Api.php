@@ -632,11 +632,11 @@ class Api
         self::getConnPool($address['lan_host'], $address['lan_port'])->send(Protocol::encode($buffer));
     }
 
-    public static function getConnPool($host, $port): ClientPool
+    public static function getConnPool($host, $port, int $size = 64): ClientPool
     {
         static $pools = [];
         if (!isset($pools[$host . ':' . $port])) {
-            $pools[$host . ':' . $port] = new ClientPool($host, $port);
+            $pools[$host . ':' . $port] = new ClientPool($host, $port, $size);
         }
         return $pools[$host . ':' . $port];
     }
