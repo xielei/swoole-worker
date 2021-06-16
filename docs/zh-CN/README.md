@@ -46,7 +46,7 @@ Press [Ctrl+C] to exit, send 'help' to show help.
 
 ## 安装
 
-只推荐composer方式安装，且确保您环境已经安装了swoole4
+推荐composer方式安装，且确保您环境已经安装了swoole4
 
 ``` cmd
 composer require xielei/swoole-worker
