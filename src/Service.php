@@ -249,6 +249,11 @@ abstract class Service extends Cli
     {
         return $this->server;
     }
+    
+    public function getGlobals(): Globals
+    {
+        return $this->globals;
+    }
 
     public static function debug(string $info)
     {
