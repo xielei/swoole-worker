@@ -1,6 +1,6 @@
 # SwooleWorker
 
-SwooleWorker is a distributed long connection development framework based on swoole4. Home furnishing memory, co channel, distributed deployment, horizontal expansion, no sense of security restart, high performance and high concurrency, SwooleWorker can be widely used in cloud computing, IOT, vehicle networking, smart home, online games, Internet plus, mobile communications and other fields. Using swooleworker can greatly improve the efficiency of enterprise IT R & D team and focus more on the development of innovative products.
+SwooleWorker is a distributed long connection development framework based on swoole4. Resident memory, coroutine, high performance and high concurrency; Distributed deployment and horizontal expansion can support a large number of connections; No perception security restart, seamless upgrade code; Interface rich, support single send, packet send, group broadcast interface. It can be widely used in cloud computing, Internet of things (IOT), Internet of vehicles, smart home, online games and other fields.
 
 ``` bash
   _____                    _   __          __        _
@@ -76,7 +76,7 @@ composer require xielei/swoole-worker
 * sendToAddressListAndRecv(array $items, float $timeout = 1): array
 * sendToAddressAndRecv(array $address, string $buffer, float $timeout = 1): string
 * sendToAddress(array $address, string $buffer)
-* getConnPool($host, $port): ClientPool
+* function getConnPool($host, $port, int $size = 64): ClientPool
 * addressToClient(array $address): string
 * clientToAddress(string $client): array
 
