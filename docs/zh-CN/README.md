@@ -84,6 +84,6 @@ composer require xielei/swoole-worker
 * sendToAddressListAndRecv(array $items, float $timeout = 1): array
 * sendToAddressAndRecv(array $address, string $buffer, float $timeout = 1): string
 * sendToAddress(array $address, string $buffer)
-* getConnPool($host, $port): ClientPool
+* getConnPool($host, $port, int $size = 64): ClientPool
 * addressToClient(array $address): string
 * clientToAddress(string $client): array
