@@ -37,16 +37,13 @@ class SockServer
                 goto connect;
             }
             return $client;
-        }, 1);
+        });
     }
 
     public function mountTo(\Swoole\Server $server)
     {
         $server->addProcess(new Process(function (Process $process) {
             $this->startLanServer();
-            while (true) {
-                Coroutine::sleep(1000);
-            }
         }, false, 2, true));
     }
 
@@ -89,7 +86,6 @@ class SockServer
                     call_user_func($this->callback ?: function () {
                     }, $conn, $res);
                 }
-                Coroutine::sleep(0.001);
             }
         });
         $server->start();
