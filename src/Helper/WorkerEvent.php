@@ -38,25 +38,25 @@ class WorkerEvent implements WorkerEventInterface
     {
     }
 
-    public function onConnect(string $client)
+    public function onConnect(string $client, array $session)
     {
     }
 
-    public function onReceive(string $client, string $data)
+    public function onReceive(string $client, array $session, string $data)
     {
     }
 
-    public function onOpen(string $client, array $request)
+    public function onOpen(string $client, array $session, array $request)
     {
-        $this->onConnect($client);
+        $this->onConnect($client, $session);
     }
 
-    public function onMessage(string $client, array $frame)
+    public function onMessage(string $client, array $session, array $frame)
     {
         switch ($frame['opcode']) {
             case WEBSOCKET_OPCODE_TEXT:
             case WEBSOCKET_OPCODE_BINARY:
-                $this->onReceive($client, $frame['data']);
+                $this->onReceive($client, $session, $frame['data']);
                 break;
 
             default:
@@ -64,7 +64,7 @@ class WorkerEvent implements WorkerEventInterface
         }
     }
 
-    public function onClose(string $client, array $bind)
+    public function onClose(string $client, array $session, array $bind)
     {
     }
 }
