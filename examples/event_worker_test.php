@@ -24,14 +24,13 @@ class WorkerEvent extends HelperWorkerEvent
         echo "event onWebsocketConnect {$client}\n";
     }
 
-    public function onConnect(string $client)
+    public function onConnect(string $client, array $session)
     {
         echo "event onConnect {$client}\n";
     }
 
-    public function onReceive(string $client, string $data)
+    public function onReceive(string $client, array $session, string $data)
     {
-        $session = json_encode($_SESSION);
         echo "event onMessage client:{$client} session:{$session} data:{$data}\n";
 
         for ($i = 0; $i < 10; $i++) {
@@ -51,7 +50,7 @@ class WorkerEvent extends HelperWorkerEvent
         }
     }
 
-    public function onClose(string $client, array $bind)
+    public function onClose(string $client, array $session, array $bind)
     {
         $bind = json_encode($bind);
         echo "event onClose {$client} info:{$bind}\n";
