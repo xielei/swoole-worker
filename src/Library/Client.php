@@ -60,14 +60,12 @@ class Client
                     if ($errCode !== SOCKET_ETIMEDOUT) {
                         $conn->close(true);
                         $this->pool->put($conn);
-                    } else {
-                        $this->pool->put($conn);
-                    }
-
-                    $this->emit('error', $errCode);
-                    if ($errCode !== SOCKET_ETIMEDOUT) {
+                        $this->emit('error', $errCode);
                         Service::debug("close3 {$this->host}:{$this->port}");
                         $this->emit('close');
+                    } else {
+                        $this->pool->put($conn);
+                        $this->emit('error', $errCode);
                     }
                 } elseif ($buffer) {
                     $this->pool->put($conn);
@@ -78,7 +76,6 @@ class Client
                     Service::debug("close4 {$this->host}:{$this->port}");
                     $this->emit('close');
                 }
-                Coroutine::sleep(0.001);
             }
             $conn = $this->pool->get();
             if ($conn->isConnected()) {
