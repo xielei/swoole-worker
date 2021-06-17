@@ -221,7 +221,6 @@ class Gateway extends Service
                             Service::debug("undefined event. buffer:{$buffer}");
                             break;
                     }
-                    Coroutine::sleep(0.001);
                 }
             });
         }, false, 2, true);
