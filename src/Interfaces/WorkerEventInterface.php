@@ -50,43 +50,48 @@ interface WorkerEventInterface
      * tcp connect
      *
      * @param string $client
+     * @param array $session
      * @return void
      */
-    public function onConnect(string $client);
+    public function onConnect(string $client, array $session);
 
     /**
      * tcp receive
      *
      * @param string $client
+     * @param array $session
      * @param string $data
      * @return void
      */
-    public function onReceive(string $client, string $data);
+    public function onReceive(string $client, array $session, string $data);
 
     /**
      * websocket open
      *
      * @param string $client
+     * @param array $session
      * @param array $request
      * @return void
      */
-    public function onOpen(string $client, array $request);
+    public function onOpen(string $client, array $session, array $request);
 
     /**
      * websocket message
      *
      * @param string $client
+     * @param array $session
      * @param array $frame
      * @return void
      */
-    public function onMessage(string $client, array $frame);
+    public function onMessage(string $client, array $session, array $frame);
 
     /**
      * tcp close
      *
      * @param string $client
+     * @param array $session
      * @param array $bind
      * @return void
      */
-    public function onClose(string $client, array $bind);
+    public function onClose(string $client, array $session, array $bind);
 }
