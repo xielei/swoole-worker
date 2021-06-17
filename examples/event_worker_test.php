@@ -19,11 +19,6 @@ class WorkerEvent extends HelperWorkerEvent
         echo "event onWorkerStop\n";
     }
 
-    public function onWebsocketConnect(string $client, array $global)
-    {
-        echo "event onWebsocketConnect {$client}\n";
-    }
-
     public function onConnect(string $client, array $session)
     {
         echo "event onConnect {$client}\n";
