@@ -38,10 +38,11 @@ Press [Ctrl+C] to exit, send 'help' to show help.
 ## 应用场景
 
 1. 物联网
-2. 游戏
-3. 推送
-4. IM
-5. 其他
+2. 云计算
+3. 车联网
+4. 智能家居
+5. 网络游戏
+6. 其他
 
 ## 安装
 
@@ -51,26 +52,38 @@ Press [Ctrl+C] to exit, send 'help' to show help.
 composer require xielei/swoole-worker
 ```
 
-## 启动
+## 接口
 
-系统有三类服务：
-
-1. register 注册中心
-2. gateway 网关服务
-3. worker 工作服务
-
-系统必须cli命令行启动：
-
-``` bash
-php your_register.php
-```
-
-``` bash
-php your_gateway.php
-```
-
-``` bash
-php your_worker.php
-```
-
-启动后进入命令行交互界面，发送`help`可查看命令帮助
+* sendToClient(string $client, string $message)
+* sendToUid(string $uid, string $message)
+* sendToGroup(string $group, string $message, array $without_client_list = [])
+* sendToAll(string $message, array $without_client_list = [])
+* isOnline(string $client): bool
+* isUidOnline(string $uid): bool
+* getClientListByGroup(string $group, string $prev_client = null): iterable
+* getClientCount(): int
+* getClientCountByGroup(string $group): int
+* getClientList(string $prev_client = null): iterable
+* getClientListByUid(string $uid, string $prev_client = null): iterable
+* getClientInfo(string $client, int $type = 255): ?array
+* getUidListByGroup(string $group, bool $unique = true): iterable
+* getUidList(bool $unique = true): iterable
+* getUidCount(float $unique_percent = null): int
+* getGroupList(bool $unique = true): iterable
+* getUidCountByGroup(string $group): int
+* closeClient(string $client, bool $force = false)
+* bindUid(string $client, string $uid)
+* unBindUid(string $client)
+* joinGroup(string $client, string $group)
+* leaveGroup(string $client, string $group)
+* unGroup(string $group)
+* setSession(string $client, array $session)
+* updateSession(string $client, array $session)
+* deleteSession(string $client)
+* getSession(string $client): ?array
+* sendToAddressListAndRecv(array $items, float $timeout = 1): array
+* sendToAddressAndRecv(array $address, string $buffer, float $timeout = 1): string
+* sendToAddress(array $address, string $buffer)
+* getConnPool($host, $port): ClientPool
+* addressToClient(array $address): string
+* clientToAddress(string $client): array
