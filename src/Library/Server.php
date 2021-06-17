@@ -39,7 +39,6 @@ class Server
             $this->emit('connect', $conn);
             while (!$this->stoped) {
                 $buffer = $conn->recv(1);
-
                 if ($buffer === '') {
                     $this->emit('close', $conn);
                     Service::debug("server close1");
@@ -56,7 +55,6 @@ class Server
                 } else {
                     $this->emit('message', $conn, $buffer);
                 }
-                Coroutine::sleep(0.001);
             }
             Service::debug("server close5");
             $this->emit('close', $conn);
