@@ -2,6 +2,9 @@
 
 SwooleWorker is a distributed long connection development framework based on swoole4. Home furnishing memory, co channel, distributed deployment, horizontal expansion, no sense of security restart, high performance and high concurrency, SwooleWorker can be widely used in cloud computing, IOT, vehicle networking, smart home, online games, Internet plus, mobile communications and other fields. Using swooleworker can greatly improve the efficiency of enterprise IT R & D team and focus more on the development of innovative products.
 
+[【English】](docs/en/)
+[【简体中文】](docs/zh-CN/)
+
 ``` bash
   _____                    _   __          __        _
  / ____|                  | |  \ \        / /       | |           ®
@@ -33,10 +36,9 @@ Press [Ctrl+C] to exit, send 'help' to show help.
 > 
 ```
 
-## Manual
+## Structure
 
-[【ENGLISH】](docs/en/)
-[【简体中文】](docs/zh-CN/)
+![架构图](https://static.ebcms.com/img/sw.png)
 
 ## Install
 
