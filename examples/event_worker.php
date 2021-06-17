@@ -7,17 +7,17 @@ use Xielei\Swoole\Helper\WorkerEvent as HelperWorkerEvent;
 
 class WorkerEvent extends HelperWorkerEvent
 {
-    public function onConnect(string $client)
+    public function onConnect(string $client, array $session)
     {
         Api::sendToAll("{$client} connect");
     }
 
-    public function onReceive(string $client, string $data)
+    public function onReceive(string $client, array $session, string $data)
     {
         Api::sendToAll("{$client} say {$data}");
     }
 
-    public function onClose(string $client, array $bind)
+    public function onClose(string $client, array $session, array $bind)
     {
         Api::sendToAll("{$client} exit~");
     }
