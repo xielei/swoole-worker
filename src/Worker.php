@@ -107,7 +107,7 @@ class Worker extends Service
                         ]), $res['worker_id']);
                         break;
                 }
-                Coroutine::sleep(0.1);
+                Coroutine::sleep(1);
             }
         }, false, 2, true);
         $server->addProcess($this->process);
@@ -233,31 +233,31 @@ class Worker extends Service
     {
         $data = unpack('Ccmd/Nfd/Nsession_len/A*data', Protocol::decode($buffer));
 
-        $_SESSION = $data['session_len'] ? unserialize(substr($data['data'], 0, $data['session_len'])) : [];
+        $session = $data['session_len'] ? unserialize(substr($data['data'], 0, $data['session_len'])) : [];
         $extra = substr($data['data'], $data['session_len']);
         $client = bin2hex(pack('NnN', ip2long($address['lan_host']), $address['lan_port'], $data['fd']));
         switch ($data['cmd']) {
 
             case Protocol::EVENT_CONNECT:
-                $this->dispatch('onConnect', $client);
+                $this->dispatch('onConnect', $client, $session);
                 break;
 
             case Protocol::EVENT_RECEIVE:
-                $this->dispatch('onReceive', $client, $extra);
+                $this->dispatch('onReceive', $client, $session, $extra);
                 break;
 
             case Protocol::EVENT_CLOSE:
-                $this->dispatch('onClose', $client, unserialize($extra));
+                $this->dispatch('onClose', $client, $session, unserialize($extra));
                 break;
 
             case Protocol::EVENT_OPEN:
-                $this->dispatch('onOpen', $client, unserialize($extra));
+                $this->dispatch('onOpen', $client, $session, unserialize($extra));
                 break;
 
             case Protocol::EVENT_MESSAGE:
                 $frame = unpack('Copcode/Cflags', $extra);
                 $frame['data'] = substr($extra, 2);
-                $this->dispatch('onMessage', $client, $frame);
+                $this->dispatch('onMessage', $client, $session, $frame);
                 break;
 
             default:
