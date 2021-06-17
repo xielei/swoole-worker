@@ -35,18 +35,13 @@ Press [Ctrl+C] to exit, send 'help' to show help.
 
 [【Github】](http://www.github.com/xielei/swoole-worker) [【官方网站】](http://www.github.com/xielei/swoole-worker)
 
-## 应用场景
+## 系统架构
 
-1. 物联网
-2. 云计算
-3. 车联网
-4. 智能家居
-5. 网络游戏
-6. 其他
+![架构图](https://static.ebcms.com/img/sw.png)
 
 ## 安装
 
-只推荐composer方式安装，且确保您环境已经安装了swoole4
+推荐composer方式安装，且确保您环境已经安装了swoole4
 
 ``` cmd
 composer require xielei/swoole-worker
