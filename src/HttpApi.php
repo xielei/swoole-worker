@@ -66,7 +66,7 @@ class HttpApi
     public function sendToUid(string $uid, string $message)
     {
         foreach ($this->getClientListByUid($uid) as $client) {
-            $this->sendToAddress($this->clientToAddress($client), $message);
+            $this->sendToClient($client, $message);
         }
     }
 
