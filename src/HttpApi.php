@@ -678,25 +678,31 @@ class HttpApi
     public function sendToAddressAndRecv(array $address, string $buffer, float $timeout = 1): string
     {
         $buffer = Protocol::encode($buffer);
-        $client = stream_socket_client("tcp://{$address['lan_host']}:{$address['lan_port']}", $errno, $errmsg, $timeout, STREAM_CLIENT_PERSISTENT | STREAM_CLIENT_CONNECT);
-        if (!$client) {
-            throw new Exception("connect to tcp://{$address['lan_host']}:{$address['lan_port']} failure! errmsg:{$errmsg}");
-        }
-        if (strlen($buffer) !== stream_socket_sendto($client, $buffer)) {
-            throw new Exception("send to tcp://{$address['lan_host']}:{$address['lan_port']} failure!");
+
+        $client_key = $address['lan_host'] . ':' . $address['lan_port'];
+        if (!isset($clients[$client_key])) {
+            $client = stream_socket_client("tcp://{$client_key}", $errno, $errmsg, $timeout, STREAM_CLIENT_PERSISTENT | STREAM_CLIENT_CONNECT);
+            if (!$client) {
+                throw new Exception("connect to tcp://{$client_key} failure! errmsg:{$errmsg}");
+            }
+            $clients[$client_key] = $client;
         }
 
-        stream_set_blocking($client, true);
-        stream_set_timeout($client, 1);
+        if (strlen($buffer) !== stream_socket_sendto($clients[$client_key], $buffer)) {
+            throw new Exception("send to tcp://{$client_key} failure!");
+        }
+
+        stream_set_blocking($clients[$client_key], true);
+        stream_set_timeout($clients[$client_key], 1);
         $recv_buf = '';
         $time_start = microtime(true);
         $pack_len = 0;
         while (true) {
-            $buf = stream_socket_recvfrom($client, 655350);
+            $buf = stream_socket_recvfrom($clients[$client_key], 655350);
             if ($buf !== '' && $buf !== false) {
                 $recv_buf .= $buf;
             } else {
-                if (feof($client)) {
+                if (feof($clients[$client_key])) {
                     throw new Exception("connection closed! tcp://$address");
                 } elseif (microtime(true) - $time_start > $timeout) {
                     break;
@@ -723,11 +729,16 @@ class HttpApi
      */
     public function sendToAddress(array $address, string $buffer)
     {
-        $buffer = Protocol::encode($buffer);
-        $client = stream_socket_client("tcp://{$address['lan_host']}:{$address['lan_port']}", $errno, $errmsg, 5, STREAM_CLIENT_PERSISTENT | STREAM_CLIENT_CONNECT);
-        if (!$client) {
-            throw new Exception("connect to tcp://{$address['lan_host']}:{$address['lan_port']} failure! errmsg:{$errmsg}");
+        static $clients = [];
+        $client_key = $address['lan_host'] . ':' . $address['lan_port'];
+        if (!isset($clients[$client_key])) {
+            $client = stream_socket_client("tcp://{$client_key}", $errno, $errmsg, 5, STREAM_CLIENT_PERSISTENT | STREAM_CLIENT_CONNECT);
+            if (!$client) {
+                throw new Exception("connect to tcp://{$client_key} failure! errmsg:{$errmsg}");
+            }
+            $clients[$client_key] = $client;
         }
-        stream_socket_sendto($client, $buffer);
+        $buffer = Protocol::encode($buffer);
+        stream_socket_sendto($clients[$client_key], $buffer);
     }
 }
