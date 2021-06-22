@@ -23,10 +23,7 @@ class GetClientCount implements CmdInterface
 
     public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
-        $count = 0;
-        if ($gateway->getServer()->worker_id == 0) {
-            $count = $gateway->getServer()->stats()['connection_num'];
-        }
-        $conn->send(Protocol::encode((string) $count));
+        $count = $gateway->getServer()->stats()['connection_num'];
+        $conn->send(Protocol::encode(pack('N', $count)));
     }
 }
