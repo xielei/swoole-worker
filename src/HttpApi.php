@@ -61,12 +61,15 @@ class HttpApi
      *
      * @param string $uid uid
      * @param string $message 消息内容
+     * @param array $without_client_list 要排除的客户端列表
      * @return void
      */
-    public function sendToUid(string $uid, string $message)
+    public function sendToUid(string $uid, string $message, array $without_client_list = [])
     {
         foreach ($this->getClientListByUid($uid) as $client) {
-            $this->sendToClient($client, $message);
+            if (!in_array($client, $without_client_list)) {
+                $this->sendToClient($client, $message);
+            }
         }
     }
 
