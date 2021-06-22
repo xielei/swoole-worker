@@ -59,7 +59,7 @@ class Api
     public static function sendToUid(string $uid, string $message)
     {
         foreach (self::getClientListByUid($uid) as $client) {
-            self::sendToAddress(self::clientToAddress($client), $message);
+            self::sendToClient($client, $message);
         }
     }
 
