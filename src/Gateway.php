@@ -309,7 +309,7 @@ class Gateway extends Service
                 $pool->close();
                 unset($this->worker_pool_list[$address]);
             } else {
-                Service::debug("close no reg worker client {$address}");
+                Service::debug("close worker connect {$address}");
             }
         };
         $server->start();
