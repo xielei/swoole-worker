@@ -22,4 +22,4 @@ $worker->set([
     'stats_file ' => __DIR__ . '/worker.stats.log',
 ]);
 
-$worker->$worker->start();
+$worker->start();
