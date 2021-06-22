@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace Xielei\Swoole;
 
@@ -36,11 +36,20 @@ class Cli
 
     final public function start()
     {
-        fwrite(STDOUT, "\e[2J");
-        fwrite(STDOUT, "\e[0;0H");
-        fwrite(STDOUT, "{$this->getLogo()}\n\n");
-        fwrite(STDOUT, "Press \e[1;33m[Ctrl+C]\e[0m to exit, send \e[1;33m'help'\e[0m to show help.\n");
-        $this->listen();
+        global $argv;
+        if (isset($argv[1])) {
+            array_shift($argv);
+            $arg_str = implode(' ', $argv);
+            $parse = $this->parseCmd($arg_str);
+            $this->execCommand($parse['cmd'], $parse['args']);
+            exit;
+        } else {
+            fwrite(STDOUT, "\e[2J");
+            fwrite(STDOUT, "\e[0;0H");
+            fwrite(STDOUT, "{$this->getLogo()}\n\n");
+            fwrite(STDOUT, "Press \e[1;33m[Ctrl+C]\e[0m to exit, send \e[1;33m'help'\e[0m to show help.\n");
+            $this->listen();
+        }
     }
 
     private function listen()
@@ -52,11 +61,6 @@ class Cli
         }
 
         $parse = $this->parseCmd($input);
-
-        if (!isset($this->cmds[$parse['cmd']])) {
-            fwrite(STDOUT, "Command \e[1;34m'{$input}'\e[0m is not supported, send \e[1;34m'help'\e[0m to view help.\n");
-            return $this->listen();
-        }
 
         switch ($this->execCommand($parse['cmd'], $parse['args'])) {
 
@@ -88,6 +92,10 @@ class Cli
     final protected function execCommand(string $cmd, array $args = []): int
     {
         try {
+            if (!isset($this->cmds[$cmd])) {
+                fwrite(STDOUT, "Command \e[1;34m'{$cmd}'\e[0m is not supported, send \e[1;34m'help'\e[0m to view help.\n");
+                return self::PANEL_LISTEN;
+            }
             return call_user_func($this->cmds[$cmd]['callback'], $args);
         } catch (Throwable $th) {
             $msg = "\e[1;31mFatal error: \e[0m Uncaught exception '" . get_class($th) . "' with message:\n";
