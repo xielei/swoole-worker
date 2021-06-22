@@ -29,7 +29,7 @@ class CloseClient implements CmdInterface
     {
         $data = self::decode($buffer);
         if ($gateway->getServer()->exist($data['fd'])) {
-            $gateway->getServer()->close($data['fd'], $data['force']);
+            $gateway->getServer()->close($data['fd'], (bool)$data['force']);
         }
     }
 }
