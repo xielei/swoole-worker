@@ -19,8 +19,10 @@ $this->on('Connect', function (Server $server, Event $event) {
         ) {
             return;
         }
-        Service::debug("close timeout fd:{$event->fd}");
-        $server->close($event->fd);
+        if ($server->exist($event->fd)) {
+            Service::debug("close timeout fd:{$event->fd}");
+            $server->close($event->fd);
+        }
     });
 });
 
