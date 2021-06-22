@@ -40,16 +40,16 @@ class Server
             while (!$this->stoped) {
                 $buffer = $conn->recv(1);
                 if ($buffer === '') {
-                    $this->emit('close', $conn);
                     Service::debug("server close1");
                     $conn->close();
+                    $this->emit('close', $conn);
                     break;
                 } elseif ($buffer === false) {
                     $errCode = swoole_last_error();
                     $this->emit('error', $conn, $errCode);
                     if ($errCode !== SOCKET_ETIMEDOUT) {
-                        $this->emit('close', $conn);
                         $conn->close();
+                        $this->emit('close', $conn);
                         break;
                     }
                 } else {
@@ -57,8 +57,8 @@ class Server
                 }
             }
             Service::debug("server close5");
-            $this->emit('close', $conn);
             $conn->close();
+            $this->emit('close', $conn);
         });
         $this->server = $server;
     }
