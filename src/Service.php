@@ -43,9 +43,9 @@ abstract class Service extends Cli
             exit("\n\033[1;31mError: Please install Swoole~\033[0m\n\033[1;36m[Swoole](https://www.swoole.com/)\033[0m\n");
         }
 
-        if (!version_compare(SWOOLE_VERSION, '4.5.0', '>=')) {
+        if (!version_compare(SWOOLE_VERSION, '4.6.0', '>=')) {
             fwrite(STDOUT, $this->getLogo());
-            exit("\n\033[1;31mError: Swoole >= 4.5.0, current version:" . SWOOLE_VERSION . "\033[0m\n\033[1;36m[Swoole](https://www.swoole.com/)\033[0m\n");
+            exit("\n\033[1;31mError: Swoole >= 4.6.0, current version:" . SWOOLE_VERSION . "\033[0m\n\033[1;36m[Swoole](https://www.swoole.com/)\033[0m\n");
         }
 
         $this->pid_file = __DIR__ . '/../' . str_replace('/', '_', array_pop(debug_backtrace())['file']) . '.pid';
