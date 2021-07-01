@@ -1,3 +1,12 @@
+---
+name: Bug report
+about: Create a report to help us improve
+title: ''
+labels: ''
+assignees: ''
+
+---
+
 > 发现问题前请先确认是否是最新版，大多数问题可以通过更新版本解决
 
 **系统信息**
