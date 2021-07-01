@@ -678,7 +678,7 @@ class HttpApi
     public function sendToAddressAndRecv(array $address, string $buffer, float $timeout = 1): string
     {
         $buffer = Protocol::encode($buffer);
-
+        static $clients = [];
         $client_key = $address['lan_host'] . ':' . $address['lan_port'];
         if (!isset($clients[$client_key])) {
             $client = stream_socket_client("tcp://{$client_key}", $errno, $errmsg, $timeout, STREAM_CLIENT_PERSISTENT | STREAM_CLIENT_CONNECT);
