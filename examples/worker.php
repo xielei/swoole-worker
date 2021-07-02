@@ -18,8 +18,8 @@ $worker->task_file = __DIR__ . '/event_task.php';
 $worker->set([
     'worker_num' => 2,
     'task_worker_num' => 2,
-    'log_file ' => __DIR__ . '/worker.log',
-    'stats_file ' => __DIR__ . '/worker.stats.log',
+    'log_file' => __DIR__ . '/worker.log',
+    'stats_file' => __DIR__ . '/worker.stats.log',
 ]);
 
 $worker->start();
