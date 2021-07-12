@@ -11,6 +11,9 @@
         "php": ">=7.2",
         "ext-swoole": "^4.6.0"
     },
+    "suggest": {
+        "swoole/ide-helper": "This package contains IDE help files for Swoole. You may use it in your IDE to provide accurate autocompletion."
+    },
     "autoload": {
         "psr-4": {
             "Xielei\\Swoole\\": "src/"
