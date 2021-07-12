@@ -235,7 +235,7 @@ abstract class Service extends Cli
     {
         $event = strtolower('on' . $event);
         Service::debug("emit {$event}");
-        call_user_func($this->events[$event] ?: function () {
+        call_user_func($this->events[$event] ?? function () {
         }, ...$args);
     }
 
