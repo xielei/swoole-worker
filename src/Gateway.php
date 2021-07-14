@@ -42,8 +42,7 @@ class Gateway extends Service
     public $throttle_fd_list = [];
     public $throttle_interval = 10000;
     public $throttle_times = 100;
-    public $throttle_close = true;
-    public $throttle_close_force = true;
+    public $throttle_close = 2;
 
     private $listen_list = [];
 
