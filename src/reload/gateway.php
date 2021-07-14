@@ -45,7 +45,9 @@ $this->on('Receive', function (Server $server, ...$args) {
     $fd = $args[0]->fd;
     $this->throttle_fd_list[$fd]['times'] -= 1;
     if ($this->throttle_fd_list[$fd]['times'] < 0) {
-        $server->close($fd, true);
+        if ($this->throttle_close) {
+            $server->close($fd, $this->throttle_close == 2 ? true : null);
+        }
     } else {
         $this->sendToProcess([
             'event' => 'Receive',
@@ -59,7 +61,9 @@ $this->on('Message', function (Server $server, ...$args) {
     $fd = $args[0]->fd;
     $this->throttle_fd_list[$fd]['times'] -= 1;
     if ($this->throttle_fd_list[$fd]['times'] < 0) {
-        $server->close($fd, true);
+        if ($this->throttle_close) {
+            $server->close($fd, $this->throttle_close == 2 ? true : null);
+        }
     } else {
         $this->sendToProcess([
             'event' => 'Message',
