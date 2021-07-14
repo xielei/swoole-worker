@@ -39,6 +39,10 @@ class Gateway extends Service
     public $uid_list = [];
     public $group_list = [];
 
+    public $throttle_fd_list = [];
+    public $throttle_interval = 10000;
+    public $throttle_times = 100;
+
     private $listen_list = [];
 
     public function __construct()
