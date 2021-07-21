@@ -3,7 +3,7 @@
 SwooleWorker is a distributed long connection development framework based on swoole4. Resident memory, coroutine, high performance and high concurrency; Distributed deployment and horizontal expansion can support a large number of connections; No perception security restart, seamless upgrade code; Interface rich, support single send, packet send, group broadcast interface. It can be widely used in cloud computing, Internet of things (IOT), Internet of vehicles, smart home, online games and other fields.
 
 [【ENGLISH】](docs/en/)
-[【简体中文】](docs/zh-CN/)
+[【简体中文】](docs/zh-CN/README.md)
 
 ``` bash
   _____                    _   __          __        _
@@ -17,7 +17,7 @@ SwooleWorker is a distributed long connection development framework based on swo
 SwooleWorker is a distributed long connection
 development framework based on Swoole4.
 
-[Github] https://github.com/xielei/swoole-worker
+[HomePage] https://swoole.plus
 =================================================
 
 Press [Ctrl+C] to exit, send 'help' to show help.
@@ -86,5 +86,5 @@ If the above interfaces do not meet the requirements, custom commands are also s
 
 -------------
 
+[【HomePage】](https://swoole.plus)
 [【Github】](http://www.github.com/xielei/swoole-worker)
-[【HomePage】](http://www.github.com/xielei/swoole-worker)
