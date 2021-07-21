@@ -2,6 +2,9 @@
 
 SwooleWorker是基于swoole4开发的一款分布式长连接开发框架。常驻内存，协程，高性能高并发；分布式部署，横向扩容，使得能支持庞大的连接数；无感知安全重启，无缝升级代码；接口丰富，支持单个发送，分组发送，群发广播等接口。可广泛应用于云计算、物联网（IOT）、车联网、智能家居、网络游戏等领域。
 
+[【官方网站】](http://swoole.plus)
+[【Github】](http://www.github.com/xielei/swoole-worker)
+
 ``` bash
   _____                    _   __          __        _
  / ____|                  | |  \ \        / /       | |           ®
@@ -14,7 +17,7 @@ SwooleWorker是基于swoole4开发的一款分布式长连接开发框架。常�
 SwooleWorker is a distributed long connection
 development framework based on Swoole4.
 
-[Github] https://github.com/xielei/swoole-worker
+[Github] https://swoole.plus
 =================================================
 
 Press [Ctrl+C] to exit, send 'help' to show help.
@@ -33,24 +36,20 @@ Press [Ctrl+C] to exit, send 'help' to show help.
 > 
 ```
 
-[【Github】](http://www.github.com/xielei/swoole-worker) [【官方网站】](http://www.github.com/xielei/swoole-worker)
-
 ## 系统架构
 
 ![架构图](https://static.ebcms.com/img/sw.png)
 
 ## 安装
 
-推荐composer方式安装，且确保您环境已经安装了swoole4
-
-``` cmd
+``` bash
 composer require xielei/swoole-worker
 ```
 
 ## 接口
 
 * sendToClient(string $client, string $message)
-* sendToUid(string $uid, string $message)
+* sendToUid(string $uid, string $message, array $without_client_list = [])
 * sendToGroup(string $group, string $message, array $without_client_list = [])
 * sendToAll(string $message, array $without_client_list = [])
 * isOnline(string $client): bool
@@ -79,6 +78,3 @@ composer require xielei/swoole-worker
 * sendToAddressListAndRecv(array $items, float $timeout = 1): array
 * sendToAddressAndRecv(array $address, string $buffer, float $timeout = 1): string
 * sendToAddress(array $address, string $buffer)
-* getConnPool($host, $port, int $size = 64): ClientPool
-* addressToClient(array $address): string
-* clientToAddress(string $client): array
