@@ -39,7 +39,7 @@ class Gateway extends Service
     public $uid_list = [];
     public $group_list = [];
 
-    public $throttle = 0;
+    public $throttle = false;
     public $throttle_list = [];
     public $throttle_interval = 10000;
     public $throttle_times = 100;
