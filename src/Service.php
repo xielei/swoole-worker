@@ -249,7 +249,10 @@ abstract class Service extends Cli
     {
         return $this->server;
     }
-    
+
+    /**
+     * @deprecated Please use redis or other. The next version will be deprecated
+     */
     public function getGlobals(): Globals
     {
         return $this->globals;
