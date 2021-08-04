@@ -31,7 +31,7 @@ abstract class Service extends Cli
     protected $config = [];
 
     public $auto_reload = false;
-    public $auto_reload_dir = [];
+    public $auto_reload_watch = [];
     public $auto_reload_interval = 5;
 
     public function __construct()
@@ -177,14 +177,14 @@ abstract class Service extends Cli
         if ($this->auto_reload) {
             $server->addProcess(new Process(function () use ($server) {
                 $filetimes = [];
-                foreach ($this->auto_reload_dir as $dir) {
-                    $this->getFilesTime($dir, $filetimes);
+                foreach ($this->auto_reload_watch as $item) {
+                    $this->getFilesTime($item, $filetimes);
                 }
                 while (true) {
                     clearstatcache();
                     $tmp_filetimes = [];
-                    foreach ($this->auto_reload_dir as $dir) {
-                        $this->getFilesTime($dir, $tmp_filetimes);
+                    foreach ($this->auto_reload_watch as $item) {
+                        $this->getFilesTime($item, $tmp_filetimes);
                     }
                     if ($tmp_filetimes != $filetimes) {
                         $filetimes = $tmp_filetimes;
