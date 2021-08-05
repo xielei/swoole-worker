@@ -15,7 +15,7 @@ SwooleWorker是基于swoole4开发的一款分布式长连接开发框架。常�
 
 =================================================
 SwooleWorker is a distributed long connection
-development framework based on Swoole4.
+development framework based on Swoole.
 
 [HomePage] https://swoole.plus
 =================================================
