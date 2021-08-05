@@ -119,9 +119,9 @@ class Cli
 
 =================================================
 SwooleWorker is a distributed long connection
-development framework based on Swoole4.
+development framework based on Swoole.
 
-[Github] https://github.com/xielei/swoole-worker
+[HomePage] https://swoole.plus
 =================================================
 str;
     }
