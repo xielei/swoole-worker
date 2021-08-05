@@ -77,16 +77,10 @@ class Register extends Service
                 fwrite(STDOUT, "the service is not running!\n");
                 return self::PANEL_LISTEN;
             }
-            $fp = stream_socket_client("unix://{$this->inner_server->getSockFile()}", $errno, $errstr);
-            if (!$fp) {
-                fwrite(STDOUT, "ERROR: $errno - $errstr\n");
-            } else {
-                fwrite($fp, Protocol::encode(serialize(['status'])));
-                $res = unserialize(Protocol::decode(fread($fp, 40960)));
-                foreach ($res as $key => $value) {
-                    fwrite(STDOUT, str_pad((string) $key, 25, '.', STR_PAD_RIGHT) . ' ' . $value . "\n");
-                }
-                fclose($fp);
+
+            $res = $this->inner_server->streamWriteAndRead(['status']);
+            foreach ($res as $key => $value) {
+                fwrite(STDOUT, str_pad((string) $key, 25, '.', STR_PAD_RIGHT) . ' ' . $value . "\n");
             }
             return self::PANEL_LISTEN;
         });
