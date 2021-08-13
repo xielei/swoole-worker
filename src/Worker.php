@@ -138,7 +138,7 @@ class Worker extends Service
             Service::debug("receive message from register");
             $data = unpack('Ccmd/A*load', Protocol::decode($buffer));
             switch ($data['cmd']) {
-                case Protocol::BROADCAST_GATEWAY_ADDRESS_LIST:
+                case Protocol::BROADCAST_GATEWAY_LIST:
                     $addresses = [];
                     if ($data['load'] && (strlen($data['load']) % 6 === 0)) {
                         foreach (str_split($data['load'], 6) as $value) {
