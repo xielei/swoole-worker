@@ -635,7 +635,7 @@ class HttpApi
             fwrite($client, Protocol::encode(pack('C', Protocol::WORKER_CONNECT) . $this->register_secret_key));
             stream_set_timeout($client, 5);
             $data = unpack('Ccmd/A*load', Protocol::decode(stream_socket_recvfrom($client, 655350)));
-            if ($data['cmd'] !== Protocol::BROADCAST_GATEWAY_ADDRESS_LIST) {
+            if ($data['cmd'] !== Protocol::BROADCAST_GATEWAY_LIST) {
                 throw new Exception("get gateway address list failure!");
             } else {
                 $addresses = [];
