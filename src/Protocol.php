@@ -11,7 +11,7 @@ class Protocol
     const PING = 0;
     const GATEWAY_CONNECT = 1;
     const WORKER_CONNECT = 2;
-    const BROADCAST_GATEWAY_ADDRESS_LIST = 3;
+    const BROADCAST_GATEWAY_LIST = 3;
 
     const EVENT_CONNECT = 20;
     const EVENT_RECEIVE = 21;
