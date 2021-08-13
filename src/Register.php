@@ -104,7 +104,7 @@ class Register extends Service
 
     protected function broadcastGatewayAddressList(int $fd = null)
     {
-        $load = pack('C', Protocol::BROADCAST_GATEWAY_ADDRESS_LIST) . implode('', $this->globals->get('gateway_address_list', []));
+        $load = pack('C', Protocol::BROADCAST_GATEWAY_LIST) . implode('', $this->globals->get('gateway_address_list', []));
         $buffer = Protocol::encode($load);
         if ($fd) {
             $this->getServer()->send($fd, $buffer);
