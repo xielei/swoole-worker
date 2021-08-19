@@ -105,7 +105,7 @@ class Worker extends Service
             }
         }, false, 2, true);
         $server->addProcess($this->process);
-        if (!isset($this->config['task_worker_num'])) {
+        if (!isset($this->server_config['task_worker_num'])) {
             $this->set([
                 'task_worker_num' => swoole_cpu_num()
             ]);
