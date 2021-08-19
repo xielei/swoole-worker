@@ -28,7 +28,7 @@ abstract class Service extends Cli
 
     public static $debug_mode = false;
 
-    protected $config = [];
+    protected $server_config = [];
 
     public $auto_reload = false;
     public $auto_reload_watch = [];
@@ -208,7 +208,7 @@ abstract class Service extends Cli
             });
         }
 
-        $server->set(array_merge($this->config, [
+        $server->set(array_merge($this->server_config, [
             'pid_file' => $this->pid_file,
             'daemonize' => $this->daemonize,
             'event_object' => true,
@@ -226,9 +226,9 @@ abstract class Service extends Cli
 
     abstract protected function createServer(): SwooleServer;
 
-    public function set(array $config = [])
+    public function set(array $server_config = [])
     {
-        $this->config = array_merge($this->config, $config);
+        $this->server_config = array_merge($this->server_config, $server_config);
     }
 
     protected function emit(string $event, ...$args)
