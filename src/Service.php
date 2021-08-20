@@ -18,8 +18,6 @@ define('SW_VERSION', '1.1.0');
  */
 abstract class Service extends Cli
 {
-    public static $debug_mode = false;
-
     public $config_file;
 
     protected $pid_file;
@@ -239,7 +237,7 @@ abstract class Service extends Cli
 
     public static function debug(string $info)
     {
-        if (self::$debug_mode) {
+        if (Config::get('debug', false)) {
             fwrite(STDOUT, '[' . date(DATE_ISO8601) . ']' . " {$info}\n");
         }
     }
