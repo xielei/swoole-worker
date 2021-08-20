@@ -5,17 +5,23 @@ declare(strict_types=1);
 namespace Xielei\Swoole;
 
 use Swoole\Process;
-use Swoole\Coroutine;
 use Swoole\Server as SwooleServer;
+use Swoole\Timer;
+use Xielei\Swoole\Library\Config;
 use Xielei\Swoole\Library\Globals;
+use Xielei\Swoole\Library\Reload;
 
-define('SW_VERSION', '1.0.10');
+define('SW_VERSION', '1.1.0');
 
 /**
  * @property Globals $globals
  */
 abstract class Service extends Cli
 {
+    public static $debug_mode = false;
+
+    public $config_file;
+
     protected $pid_file;
     protected $daemonize = false;
 
@@ -24,15 +30,7 @@ abstract class Service extends Cli
 
     protected $events;
 
-    protected $reload_file;
-
-    public static $debug_mode = false;
-
     protected $config = [];
-
-    public $auto_reload = false;
-    public $auto_reload_watch = [];
-    public $auto_reload_interval = 5;
 
     public function __construct()
     {
@@ -152,52 +150,33 @@ abstract class Service extends Cli
         });
     }
 
-    private function getFilesTime($path, &$files)
-    {
-        if (is_dir($path)) {
-            $dp = dir($path);
-            while ($file = $dp->read()) {
-                if ($file !== "." && $file !== "..") {
-                    $this->getFilesTime($path . "/" . $file, $files);
-                }
-            }
-            $dp->close();
-        }
-        if (is_file($path)) {
-            $files[$path] = filemtime($path);
-        }
-    }
-
     private function startServer()
     {
         cli_set_process_title(str_replace('/', '_', array_pop(debug_backtrace())['file']));
         $server = $this->createServer();
         $this->globals = new Globals();
         $this->globals->mountTo($server);
-        if ($this->auto_reload) {
-            $server->addProcess(new Process(function () use ($server) {
-                $filetimes = [];
-                foreach ($this->auto_reload_watch as $item) {
-                    $this->getFilesTime($item, $filetimes);
+
+        $server->addProcess(new Process(function () use ($server) {
+            Config::load($this->config_file);
+            $watch = Config::get('reload_watch', []);
+            $watch[] = $this->config_file;
+            Reload::init($watch);
+            Timer::tick(1000, function () use ($server) {
+                if (Reload::check()) {
+                    $server->reload();
+                    Config::load($this->config_file);
+                    $watch = Config::get('reload_watch', []);
+                    $watch[] = $this->config_file;
+                    Reload::init($watch);
                 }
-                while (true) {
-                    clearstatcache();
-                    $tmp_filetimes = [];
-                    foreach ($this->auto_reload_watch as $item) {
-                        $this->getFilesTime($item, $tmp_filetimes);
-                    }
-                    if ($tmp_filetimes != $filetimes) {
-                        $filetimes = $tmp_filetimes;
-                        $server->reload();
-                    }
-                    Coroutine::sleep($this->auto_reload_interval);
-                }
-            }, false, 2, true));
-        }
+            });
+        }, false, 2, true));
 
         $server->on('WorkerStart', function (...$args) {
-            if ($this->reload_file) {
-                include $this->reload_file;
+            Config::load($this->config_file);
+            if (Config::isset('init_file')) {
+                include Config::get('init_file');
             }
             $this->emit('WorkerStart', ...$args);
         });
