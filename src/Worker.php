@@ -190,7 +190,7 @@ class Worker extends Service
             $client = new Client($address['lan_host'], $address['lan_port']);
             $client->onConnect = function () use ($client, $address) {
                 Service::debug("connect to gateway {$address['lan_host']}:{$address['lan_port']} 成功");
-                $client->send(Protocol::encode(pack('C', RegisterWorker::getCommandCode())));
+                $client->send(Protocol::encode(RegisterWorker::encode(Config::get('tag_list', []))));
 
                 $ping_buffer = Protocol::encode(pack('C', Ping::getCommandCode()));
                 $client->timer_id = Timer::tick(30000, function () use ($client, $ping_buffer, $address) {
