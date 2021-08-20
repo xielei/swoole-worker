@@ -12,17 +12,14 @@ use Xielei\Swoole\Cmd\Ping;
 use Swoole\Coroutine\Server\Connection;
 use Xielei\Swoole\Cmd\RegisterWorker;
 use Xielei\Swoole\Library\Client;
+use Xielei\Swoole\Library\Config;
+use Xielei\Swoole\Library\Reload;
 use Xielei\Swoole\Library\SockServer;
 
 class Worker extends Service
 {
-    public $reload_file = __DIR__ . '/reload/worker.php';
-    public $worker_file = __DIR__ . '/reload/event_worker.php';
-    public $task_file = __DIR__ . '/reload/event_task.php';
-
     public $register_host = '127.0.0.1';
     public $register_port = 9327;
-    public $register_secret_key = '';
 
     protected $process;
     protected $inner_server;
@@ -33,10 +30,12 @@ class Worker extends Service
     public function __construct()
     {
         parent::__construct();
-        
+
         $this->set([
             'task_worker_num' => swoole_cpu_num()
         ]);
+
+        Config::set('init_file', __DIR__ . '/init/worker.php');
 
         $this->inner_server = new SockServer(function (Connection $conn, $data) {
             if (!is_array($data)) {
@@ -50,10 +49,6 @@ class Worker extends Service
                         'daemonize' => $this->daemonize,
                         'register_host' => $this->register_host,
                         'register_port' => $this->register_port,
-                        'register_secret_key' => $this->register_secret_key,
-                        'reload_file' => $this->reload_file,
-                        'worker_file' => $this->worker_file,
-                        'task_file' => $this->task_file,
                         'gateway_address_list' => json_encode($this->globals->get('gateway_address_list')),
                     ];
                     $ret['start_time'] = date(DATE_ISO8601, $ret['start_time']);
@@ -89,6 +84,20 @@ class Worker extends Service
 
         $this->inner_server->mountTo($server);
         $this->process = new Process(function ($process) {
+
+            Config::load($this->config_file);
+            $watch = Config::get('reload_watch', []);
+            $watch[] = $this->config_file;
+            Reload::init($watch);
+            Timer::tick(1000, function () {
+                if (Reload::check()) {
+                    Config::load($this->config_file);
+                    $watch = Config::get('reload_watch', []);
+                    $watch[] = $this->config_file;
+                    Reload::init($watch);
+                }
+            });
+
             $this->connectToRegister();
             $socket = $process->exportSocket();
             while (true) {
@@ -125,7 +134,7 @@ class Worker extends Service
         $client = new Client($this->register_host, $this->register_port);
         $client->onConnect = function () use ($client) {
             Service::debug("connect to register");
-            $client->send(Protocol::encode(pack('C', Protocol::WORKER_CONNECT) . $this->register_secret_key));
+            $client->send(Protocol::encode(pack('C', Protocol::WORKER_CONNECT) . Config::get('register_secret', '')));
 
             $ping_buffer = Protocol::encode(pack('C', Protocol::PING));
             $client->timer_id = Timer::tick(30000, function () use ($client, $ping_buffer) {
