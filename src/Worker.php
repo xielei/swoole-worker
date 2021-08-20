@@ -33,6 +33,10 @@ class Worker extends Service
     public function __construct()
     {
         parent::__construct();
+        
+        $this->set([
+            'task_worker_num' => swoole_cpu_num()
+        ]);
 
         $this->inner_server = new SockServer(function (Connection $conn, $data) {
             if (!is_array($data)) {
@@ -105,11 +109,6 @@ class Worker extends Service
             }
         }, false, 2, true);
         $server->addProcess($this->process);
-        if (!isset($this->server_config['task_worker_num'])) {
-            $this->set([
-                'task_worker_num' => swoole_cpu_num()
-            ]);
-        }
         $this->set([
             'task_enable_coroutine' => true,
         ]);
