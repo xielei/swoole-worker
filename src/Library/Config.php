@@ -8,6 +8,13 @@ class Config
 {
     private static $configs = [];
 
+    public static function load(string $file)
+    {
+        foreach (require $file as $key => $value) {
+            Config::set($key, $value);
+        }
+    }
+
     public static function set(string $key, $value)
     {
         self::$configs[$key] = $value;
