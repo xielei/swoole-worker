@@ -6,25 +6,24 @@ namespace Xielei\Swoole;
 
 use Swoole\Coroutine\Server\Connection;
 use Swoole\Server;
+use Xielei\Swoole\Library\Config;
 use Xielei\Swoole\Library\SockServer;
 
 class Register extends Service
 {
-    public $reload_file = __DIR__ . '/reload/register.php';
-
     protected $inner_server;
 
     protected $register_host;
     protected $register_port;
-    protected $register_secret_key;
 
-    public function __construct(string $register_host = '127.0.0.1', int $register_port = 9327, string $register_secret_key = '')
+    public function __construct(string $register_host = '127.0.0.1', int $register_port = 9327)
     {
         parent::__construct();
 
+        Config::set('init_file', __DIR__ . '/init/register.php');
+
         $this->register_host = $register_host;
         $this->register_port = $register_port;
-        $this->register_secret_key = $register_secret_key;
 
         $this->inner_server = new SockServer(function (Connection $conn, $data) {
             if (!is_array($data)) {
@@ -38,8 +37,6 @@ class Register extends Service
                         'daemonize' => $this->daemonize,
                         'register_host' => $this->register_host,
                         'register_port' => $this->register_port,
-                        'register_secret_key' => $this->register_secret_key,
-                        'reload_file' => $this->reload_file,
                         'worker_count' => count($this->globals->get('worker_fd_list', [])),
                         'worker_list' => (function (): string {
                             $res = [];
