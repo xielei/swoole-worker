@@ -247,7 +247,7 @@ class Api
         foreach (self::$address_list as $address) {
             if ($start || $address == $prev_address) {
                 $tmp_prev_fd = 0;
-                while ($fd_list = unpack('N*', self::sendToAddressAndRecv($address, GetClientList::encode(10000, $tmp_prev_fd)))) {
+                while ($fd_list = unpack('N*', self::sendToAddressAndRecv($address, GetClientList::encode(100, $tmp_prev_fd)))) {
                     foreach ($fd_list as $fd) {
                         if ($start || $fd > $prev_fd) {
                             $start = true;

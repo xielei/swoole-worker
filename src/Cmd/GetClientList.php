@@ -29,18 +29,9 @@ class GetClientList implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $data = self::decode($buffer);
-        $fd_list = [];
-        if ($limit = $data['limit']) {
-            foreach ($gateway->fd_list as $fd => $value) {
-                if ($fd > $data['prev_fd']) {
-                    $fd_list[] = $fd;
-                    $limit -= 1;
-                    if (!$limit) {
-                        break;
-                    }
-                }
-            }
+        if (!$fd_list = $gateway->getServer()->getClientList($data['prev_fd'], $data['limit'])) {
+            $fd_list = [];
         }
-        $conn->send(Protocol::encode(pack('N*', ...$fd_list)));
+        $conn->send(Protocol::encode(pack('N*', ...array_values($fd_list))));
     }
 }
