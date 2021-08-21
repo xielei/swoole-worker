@@ -11,7 +11,7 @@ use Xielei\Swoole\Library\Config;
 use Xielei\Swoole\Library\Globals;
 use Xielei\Swoole\Library\Reload;
 
-define('SW_VERSION', '1.1.0');
+define('SW_VERSION', '2.0.0');
 
 /**
  * @property Globals $globals
