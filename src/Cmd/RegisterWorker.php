@@ -32,11 +32,15 @@ class RegisterWorker implements CmdInterface
     {
         $res = self::decode($buffer);
         $address = implode(':', $conn->exportSocket()->getpeername());
-        $gateway->worker_list[$address] = [
-            'tag_list' => $res['tag_list'],
-            'pool' => new ConnectionPool(function () use ($conn) {
-                return $conn;
-            }, 1),
-        ];
+        if (isset($gateway->worker_list[$address])) {
+            $gateway->worker_list[$address]['tag_list'] = $res['tag_list'];
+        } else {
+            $gateway->worker_list[$address] = [
+                'tag_list' => $res['tag_list'],
+                'pool' => new ConnectionPool(function () use ($conn) {
+                    return $conn;
+                }, 1),
+            ];
+        }
     }
 }
