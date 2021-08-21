@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Xielei\Swoole;
 
-use Exception;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Server\Connection;
 use Swoole\Process;
