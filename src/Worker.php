@@ -12,17 +12,14 @@ use Xielei\Swoole\Cmd\Ping;
 use Swoole\Coroutine\Server\Connection;
 use Xielei\Swoole\Cmd\RegisterWorker;
 use Xielei\Swoole\Library\Client;
+use Xielei\Swoole\Library\Config;
+use Xielei\Swoole\Library\Reload;
 use Xielei\Swoole\Library\SockServer;
 
 class Worker extends Service
 {
-    public $reload_file = __DIR__ . '/reload/worker.php';
-    public $worker_file = __DIR__ . '/reload/event_worker.php';
-    public $task_file = __DIR__ . '/reload/event_task.php';
-
     public $register_host = '127.0.0.1';
     public $register_port = 9327;
-    public $register_secret_key = '';
 
     protected $process;
     protected $inner_server;
@@ -33,6 +30,12 @@ class Worker extends Service
     public function __construct()
     {
         parent::__construct();
+
+        $this->set([
+            'task_worker_num' => swoole_cpu_num()
+        ]);
+
+        Config::set('init_file', __DIR__ . '/init/worker.php');
 
         $this->inner_server = new SockServer(function (Connection $conn, $data) {
             if (!is_array($data)) {
@@ -46,10 +49,6 @@ class Worker extends Service
                         'daemonize' => $this->daemonize,
                         'register_host' => $this->register_host,
                         'register_port' => $this->register_port,
-                        'register_secret_key' => $this->register_secret_key,
-                        'reload_file' => $this->reload_file,
-                        'worker_file' => $this->worker_file,
-                        'task_file' => $this->task_file,
                         'gateway_address_list' => json_encode($this->globals->get('gateway_address_list')),
                     ];
                     $ret['start_time'] = date(DATE_ISO8601, $ret['start_time']);
@@ -70,16 +69,10 @@ class Worker extends Service
                 fwrite(STDOUT, "the service is not running!\n");
                 return self::PANEL_LISTEN;
             }
-            $fp = stream_socket_client("unix://{$this->inner_server->getSockFile()}", $errno, $errstr);
-            if (!$fp) {
-                fwrite(STDOUT, "ERROR: $errno - $errstr\n");
-            } else {
-                fwrite($fp, Protocol::encode(serialize(['status'])));
-                $res = unserialize(Protocol::decode(fread($fp, 40960)));
-                foreach ($res as $key => $value) {
-                    fwrite(STDOUT, str_pad((string) $key, 25, '.', STR_PAD_RIGHT) . ' ' . $value . "\n");
-                }
-                fclose($fp);
+
+            $res = $this->inner_server->streamWriteAndRead(['status']);
+            foreach ($res as $key => $value) {
+                fwrite(STDOUT, str_pad((string) $key, 25, '.', STR_PAD_RIGHT) . ' ' . $value . "\n");
             }
             return self::PANEL_LISTEN;
         });
@@ -91,6 +84,20 @@ class Worker extends Service
 
         $this->inner_server->mountTo($server);
         $this->process = new Process(function ($process) {
+
+            Config::load($this->config_file);
+            $watch = Config::get('reload_watch', []);
+            $watch[] = $this->config_file;
+            Reload::init($watch);
+            Timer::tick(1000, function () {
+                if (Reload::check()) {
+                    Config::load($this->config_file);
+                    $watch = Config::get('reload_watch', []);
+                    $watch[] = $this->config_file;
+                    Reload::init($watch);
+                }
+            });
+
             $this->connectToRegister();
             $socket = $process->exportSocket();
             while (true) {
@@ -107,15 +114,10 @@ class Worker extends Service
                         ]), $res['worker_id']);
                         break;
                 }
-                Coroutine::sleep(0.1);
+                Coroutine::sleep(1);
             }
         }, false, 2, true);
         $server->addProcess($this->process);
-        if (!isset($this->config['task_worker_num'])) {
-            $this->set([
-                'task_worker_num' => swoole_cpu_num()
-            ]);
-        }
         $this->set([
             'task_enable_coroutine' => true,
         ]);
@@ -132,7 +134,7 @@ class Worker extends Service
         $client = new Client($this->register_host, $this->register_port);
         $client->onConnect = function () use ($client) {
             Service::debug("connect to register");
-            $client->send(Protocol::encode(pack('C', Protocol::WORKER_CONNECT) . $this->register_secret_key));
+            $client->send(Protocol::encode(pack('C', Protocol::WORKER_CONNECT) . Config::get('register_secret', '')));
 
             $ping_buffer = Protocol::encode(pack('C', Protocol::PING));
             $client->timer_id = Timer::tick(30000, function () use ($client, $ping_buffer) {
@@ -144,7 +146,7 @@ class Worker extends Service
             Service::debug("receive message from register");
             $data = unpack('Ccmd/A*load', Protocol::decode($buffer));
             switch ($data['cmd']) {
-                case Protocol::BROADCAST_GATEWAY_ADDRESS_LIST:
+                case Protocol::BROADCAST_GATEWAY_LIST:
                     $addresses = [];
                     if ($data['load'] && (strlen($data['load']) % 6 === 0)) {
                         foreach (str_split($data['load'], 6) as $value) {
@@ -188,7 +190,7 @@ class Worker extends Service
             $client = new Client($address['lan_host'], $address['lan_port']);
             $client->onConnect = function () use ($client, $address) {
                 Service::debug("connect to gateway {$address['lan_host']}:{$address['lan_port']} 成功");
-                $client->send(Protocol::encode(pack('C', RegisterWorker::getCommandCode())));
+                $client->send(Protocol::encode(RegisterWorker::encode(Config::get('tag_list', []))));
 
                 $ping_buffer = Protocol::encode(pack('C', Ping::getCommandCode()));
                 $client->timer_id = Timer::tick(30000, function () use ($client, $ping_buffer, $address) {
@@ -233,31 +235,31 @@ class Worker extends Service
     {
         $data = unpack('Ccmd/Nfd/Nsession_len/A*data', Protocol::decode($buffer));
 
-        $_SESSION = $data['session_len'] ? unserialize(substr($data['data'], 0, $data['session_len'])) : [];
+        $session = $data['session_len'] ? unserialize(substr($data['data'], 0, $data['session_len'])) : [];
         $extra = substr($data['data'], $data['session_len']);
         $client = bin2hex(pack('NnN', ip2long($address['lan_host']), $address['lan_port'], $data['fd']));
         switch ($data['cmd']) {
 
             case Protocol::EVENT_CONNECT:
-                $this->dispatch('onConnect', $client);
+                $this->dispatch('onConnect', $client, $session);
                 break;
 
             case Protocol::EVENT_RECEIVE:
-                $this->dispatch('onReceive', $client, $extra);
+                $this->dispatch('onReceive', $client, $session, $extra);
                 break;
 
             case Protocol::EVENT_CLOSE:
-                $this->dispatch('onClose', $client, unserialize($extra));
+                $this->dispatch('onClose', $client, $session, unserialize($extra));
                 break;
 
             case Protocol::EVENT_OPEN:
-                $this->dispatch('onOpen', $client, unserialize($extra));
+                $this->dispatch('onOpen', $client, $session, unserialize($extra));
                 break;
 
             case Protocol::EVENT_MESSAGE:
                 $frame = unpack('Copcode/Cflags', $extra);
                 $frame['data'] = substr($extra, 2);
-                $this->dispatch('onMessage', $client, $frame);
+                $this->dispatch('onMessage', $client, $session, $frame);
                 break;
 
             default:

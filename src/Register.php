@@ -6,25 +6,24 @@ namespace Xielei\Swoole;
 
 use Swoole\Coroutine\Server\Connection;
 use Swoole\Server;
+use Xielei\Swoole\Library\Config;
 use Xielei\Swoole\Library\SockServer;
 
 class Register extends Service
 {
-    public $reload_file = __DIR__ . '/reload/register.php';
-
     protected $inner_server;
 
     protected $register_host;
     protected $register_port;
-    protected $register_secret_key;
 
-    public function __construct(string $register_host = '127.0.0.1', int $register_port = 9327, string $register_secret_key = '')
+    public function __construct(string $register_host = '127.0.0.1', int $register_port = 9327)
     {
         parent::__construct();
 
+        Config::set('init_file', __DIR__ . '/init/register.php');
+
         $this->register_host = $register_host;
         $this->register_port = $register_port;
-        $this->register_secret_key = $register_secret_key;
 
         $this->inner_server = new SockServer(function (Connection $conn, $data) {
             if (!is_array($data)) {
@@ -38,8 +37,6 @@ class Register extends Service
                         'daemonize' => $this->daemonize,
                         'register_host' => $this->register_host,
                         'register_port' => $this->register_port,
-                        'register_secret_key' => $this->register_secret_key,
-                        'reload_file' => $this->reload_file,
                         'worker_count' => count($this->globals->get('worker_fd_list', [])),
                         'worker_list' => (function (): string {
                             $res = [];
@@ -77,16 +74,10 @@ class Register extends Service
                 fwrite(STDOUT, "the service is not running!\n");
                 return self::PANEL_LISTEN;
             }
-            $fp = stream_socket_client("unix://{$this->inner_server->getSockFile()}", $errno, $errstr);
-            if (!$fp) {
-                fwrite(STDOUT, "ERROR: $errno - $errstr\n");
-            } else {
-                fwrite($fp, Protocol::encode(serialize(['status'])));
-                $res = unserialize(Protocol::decode(fread($fp, 40960)));
-                foreach ($res as $key => $value) {
-                    fwrite(STDOUT, str_pad((string) $key, 25, '.', STR_PAD_RIGHT) . ' ' . $value . "\n");
-                }
-                fclose($fp);
+
+            $res = $this->inner_server->streamWriteAndRead(['status']);
+            foreach ($res as $key => $value) {
+                fwrite(STDOUT, str_pad((string) $key, 25, '.', STR_PAD_RIGHT) . ' ' . $value . "\n");
             }
             return self::PANEL_LISTEN;
         });
@@ -110,7 +101,7 @@ class Register extends Service
 
     protected function broadcastGatewayAddressList(int $fd = null)
     {
-        $load = pack('C', Protocol::BROADCAST_GATEWAY_ADDRESS_LIST) . implode('', $this->globals->get('gateway_address_list', []));
+        $load = pack('C', Protocol::BROADCAST_GATEWAY_LIST) . implode('', $this->globals->get('gateway_address_list', []));
         $buffer = Protocol::encode($load);
         if ($fd) {
             $this->getServer()->send($fd, $buffer);

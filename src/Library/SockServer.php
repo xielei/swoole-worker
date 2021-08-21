@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Xielei\Swoole\Library;
 
+use Exception;
 use Swoole\ConnectionPool;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Server\Connection;
@@ -37,16 +38,13 @@ class SockServer
                 goto connect;
             }
             return $client;
-        }, 1);
+        });
     }
 
     public function mountTo(\Swoole\Server $server)
     {
         $server->addProcess(new Process(function (Process $process) {
             $this->startLanServer();
-            while (true) {
-                Coroutine::sleep(1000);
-            }
         }, false, 2, true));
     }
 
@@ -62,6 +60,19 @@ class SockServer
         $res = unserialize(Protocol::decode($client->recv()));
         $this->pool->put($client);
         return $res;
+    }
+
+    public function streamWriteAndRead($data)
+    {
+        $fp = stream_socket_client("unix://{$this->sock_file}", $errno, $errstr);
+        if (!$fp) {
+            throw new Exception("$errstr", $errno);
+        } else {
+            fwrite($fp, Protocol::encode(serialize($data)));
+            $res = unserialize(Protocol::decode(fread($fp, 40960)));
+            fclose($fp);
+            return $res;
+        }
     }
 
     private function startLanServer()
@@ -89,7 +100,6 @@ class SockServer
                     call_user_func($this->callback ?: function () {
                     }, $conn, $res);
                 }
-                Coroutine::sleep(0.001);
             }
         });
         $server->start();

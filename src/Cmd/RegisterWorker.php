@@ -16,16 +16,27 @@ class RegisterWorker implements CmdInterface
         return 19;
     }
 
-    public static function encode(): string
+    public static function encode(array $tag_list = []): string
     {
-        return pack('C', self::getCommandCode());
+        return pack('C', self::getCommandCode()) . json_encode(array_values($tag_list));
+    }
+
+    public static function decode(string $buffer): array
+    {
+        return [
+            'tag_list' => json_decode($buffer, true),
+        ];
     }
 
     public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
+        $res = self::decode($buffer);
         $address = implode(':', $conn->exportSocket()->getpeername());
-        $gateway->worker_pool_list[$address] = new ConnectionPool(function () use ($conn) {
-            return $conn;
-        }, 1);
+        $gateway->worker_list[$address] = [
+            'tag_list' => $res['tag_list'],
+            'pool' => new ConnectionPool(function () use ($conn) {
+                return $conn;
+            }, 1),
+        ];
     }
 }

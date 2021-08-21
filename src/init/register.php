@@ -4,6 +4,7 @@ use Swoole\Server;
 use Swoole\Server\Event;
 use Xielei\Swoole\Protocol;
 use Swoole\Timer;
+use Xielei\Swoole\Library\Config;
 use Xielei\Swoole\Register;
 use Xielei\Swoole\Service;
 
@@ -31,9 +32,9 @@ $this->on('Receive', function (Server $server, Event $event) {
     switch ($data['cmd']) {
         case Protocol::GATEWAY_CONNECT:
             $load = unpack('Nlan_host/nlan_port', $data['load']);
-            $load['register_secret_key'] = substr($data['load'], 6);
-            if ($this->register_secret_key && $load['register_secret_key'] !== $this->register_secret_key) {
-                Service::debug("GATEWAY_CONNECT failure. secret_key invalid~");
+            $load['register_secret'] = substr($data['load'], 6);
+            if (Config::get('register_secret', '') && $load['register_secret'] !== Config::get('register_secret', '')) {
+                Service::debug("GATEWAY_CONNECT failure. register_secret invalid~");
                 $server->close($event->fd);
                 return;
             }
@@ -42,8 +43,8 @@ $this->on('Receive', function (Server $server, Event $event) {
             break;
 
         case Protocol::WORKER_CONNECT:
-            if ($this->register_secret_key && ($data['load'] !== $this->register_secret_key)) {
-                Service::debug("WORKER_CONNECT failure. secret_key invalid~");
+            if (Config::get('register_secret', '') && ($data['load'] !== Config::get('register_secret', ''))) {
+                Service::debug("WORKER_CONNECT failure. register_secret invalid~");
                 $server->close($event->fd);
                 return;
             }

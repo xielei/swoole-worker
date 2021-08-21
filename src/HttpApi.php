@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace Xielei\Swoole;
 
-use Swoole\Coroutine;
-use Swoole\Coroutine\Barrier;
+use Exception;
 use Xielei\Swoole\Cmd\BindUid;
 use Xielei\Swoole\Cmd\CloseClient;
 use Xielei\Swoole\Cmd\DeleteSession;
@@ -30,11 +29,19 @@ use Xielei\Swoole\Cmd\SetSession;
 use Xielei\Swoole\Cmd\UnBindUid;
 use Xielei\Swoole\Cmd\UnGroup;
 use Xielei\Swoole\Cmd\UpdateSession;
-use Xielei\Swoole\Library\ClientPool;
 
-class Api
+class HttpApi
 {
-    public static $address_list = null;
+    private $register_host = '127.0.0.1';
+    private $register_port = 9327;
+    private $register_secret_key = '';
+
+    public function __construct(string $register_host = '127.0.0.1', int $register_port = 9327, string $register_secret_key = '')
+    {
+        $this->register_host = $register_host;
+        $this->register_port = $register_port;
+        $this->register_secret_key = $register_secret_key;
+    }
 
     /**
      * 给客户端发消息
@@ -43,10 +50,10 @@ class Api
      * @param string $message 消息内容
      * @return void
      */
-    public static function sendToClient(string $client, string $message)
+    public function sendToClient(string $client, string $message)
     {
-        $address = self::clientToAddress($client);
-        self::sendToAddress($address, SendToClient::encode($address['fd'], $message));
+        $address = $this->clientToAddress($client);
+        $this->sendToAddress($address, SendToClient::encode($address['fd'], $message));
     }
 
     /**
@@ -57,11 +64,11 @@ class Api
      * @param array $without_client_list 要排除的客户端列表
      * @return void
      */
-    public static function sendToUid(string $uid, string $message, array $without_client_list = [])
+    public function sendToUid(string $uid, string $message, array $without_client_list = [])
     {
-        foreach (self::getClientListByUid($uid) as $client) {
+        foreach ($this->getClientListByUid($uid) as $client) {
             if (!in_array($client, $without_client_list)) {
-                self::sendToClient($client, $message);
+                $this->sendToClient($client, $message);
             }
         }
     }
@@ -74,13 +81,13 @@ class Api
      * @param array $without_client_list 要排除的客户端
      * @return void
      */
-    public static function sendToGroup(string $group, string $message, array $without_client_list = [])
+    public function sendToGroup(string $group, string $message, array $without_client_list = [])
     {
-        foreach (self::$address_list as $address) {
-            self::sendToAddress($address, SendToGroup::encode($group, $message, (function () use ($address, $without_client_list): array {
+        foreach ($this->getAddressList() as $address) {
+            $this->sendToAddress($address, SendToGroup::encode($group, $message, (function () use ($address, $without_client_list): array {
                 $res = [];
                 foreach ($without_client_list as $client) {
-                    $tmp = self::clientToAddress($client);
+                    $tmp = $this->clientToAddress($client);
                     if ($tmp['lan_host'] == $address['lan_host'] && $tmp['lan_port'] == $address['lan_port']) {
                         $res[] = $tmp['fd'];
                     }
@@ -97,13 +104,13 @@ class Api
      * @param array $without_client_list 要排除的客户端
      * @return void
      */
-    public static function sendToAll(string $message, array $without_client_list = [])
+    public function sendToAll(string $message, array $without_client_list = [])
     {
-        foreach (self::$address_list as $address) {
-            self::sendToAddress($address, SendToAll::encode($message, (function () use ($address, $without_client_list): array {
+        foreach ($this->getAddressList() as $address) {
+            $this->sendToAddress($address, SendToAll::encode($message, (function () use ($address, $without_client_list): array {
                 $res = [];
                 foreach ($without_client_list as $client) {
-                    $tmp = self::clientToAddress($client);
+                    $tmp = $this->clientToAddress($client);
                     if ($tmp['lan_host'] == $address['lan_host'] && $tmp['lan_port'] == $address['lan_port']) {
                         $res[] = $tmp['fd'];
                     }
@@ -119,10 +126,10 @@ class Api
      * @param string $client
      * @return boolean
      */
-    public static function isOnline(string $client): bool
+    public function isOnline(string $client): bool
     {
-        $address = self::clientToAddress($client);
-        return isOnline::result(self::sendToAddressAndRecv($address, IsOnline::encode($address['fd'])));
+        $address = $this->clientToAddress($client);
+        return isOnline::result($this->sendToAddressAndRecv($address, IsOnline::encode($address['fd'])));
     }
 
     /**
@@ -131,9 +138,9 @@ class Api
      * @param string $uid
      * @return boolean
      */
-    public static function isUidOnline(string $uid): bool
+    public function isUidOnline(string $uid): bool
     {
-        foreach (self::getClientListByUid($uid) as $value) {
+        foreach ($this->getClientListByUid($uid) as $value) {
             return true;
         }
         return false;
@@ -146,11 +153,11 @@ class Api
      * @param string $prev_client 从该客户端开始读取
      * @return iterable
      */
-    public static function getClientListByGroup(string $group, string $prev_client = null): iterable
+    public function getClientListByGroup(string $group, string $prev_client = null): iterable
     {
         $start = $prev_client ? false : true;
         if (!$start) {
-            $tmp = self::clientToAddress($prev_client);
+            $tmp = $this->clientToAddress($prev_client);
             $prev_address = [
                 'lan_host' => $tmp['lan_host'],
                 'lan_port' => $tmp['lan_port'],
@@ -158,13 +165,13 @@ class Api
             $prev_fd = $tmp['fd'];
         }
         $buffer = GetClientListByGroup::encode($group);
-        foreach (self::$address_list as $address) {
+        foreach ($this->getAddressList() as $address) {
             if ($start || $address == $prev_address) {
-                $res = self::sendToAddressAndRecv($address, $buffer);
+                $res = $this->sendToAddressAndRecv($address, $buffer);
                 foreach (unpack('N*', $res) as $fd) {
                     if ($start || $fd > $prev_fd) {
                         $start = true;
-                        yield self::addressToClient([
+                        yield $this->addressToClient([
                             'lan_host' => $address['lan_host'],
                             'lan_port' => $address['lan_port'],
                             'fd' => $fd,
@@ -181,17 +188,17 @@ class Api
      *
      * @return integer
      */
-    public static function getClientCount(): int
+    public function getClientCount(): int
     {
         $items = [];
         $buffer = GetClientCount::encode();
-        foreach (self::$address_list as $key => $address) {
+        foreach ($this->getAddressList() as $key => $address) {
             $items[$key] = [
                 'address' => $address,
                 'buffer' => $buffer,
             ];
         }
-        $buffers = self::sendToAddressListAndRecv($items);
+        $buffers = $this->sendToAddressListAndRecv($items);
 
         $count = 0;
         foreach ($buffers as $key => $buffer) {
@@ -207,17 +214,17 @@ class Api
      * @param string $group
      * @return integer
      */
-    public static function getClientCountByGroup(string $group): int
+    public function getClientCountByGroup(string $group): int
     {
         $items = [];
         $buffer = GetClientCountByGroup::encode($group);
-        foreach (self::$address_list as $key => $address) {
+        foreach ($this->getAddressList() as $key => $address) {
             $items[$key] = [
                 'address' => $address,
                 'buffer' => $buffer,
             ];
         }
-        $buffers = self::sendToAddressListAndRecv($items);
+        $buffers = $this->sendToAddressListAndRecv($items);
 
         $count = 0;
         foreach ($buffers as $key => $buffer) {
@@ -233,25 +240,25 @@ class Api
      * @param string $prev_client 从该客户端开始读取
      * @return iterable
      */
-    public static function getClientList(string $prev_client = null): iterable
+    public function getClientList(string $prev_client = null): iterable
     {
         $start = $prev_client ? false : true;
         if (!$start) {
-            $tmp = self::clientToAddress($prev_client);
+            $tmp = $this->clientToAddress($prev_client);
             $prev_address = [
                 'lan_host' => $tmp['lan_host'],
                 'lan_port' => $tmp['lan_port'],
             ];
             $prev_fd = $tmp['fd'];
         }
-        foreach (self::$address_list as $address) {
+        foreach ($this->getAddressList() as $address) {
             if ($start || $address == $prev_address) {
                 $tmp_prev_fd = 0;
-                while ($fd_list = unpack('N*', self::sendToAddressAndRecv($address, GetClientList::encode(10000, $tmp_prev_fd)))) {
+                while ($fd_list = unpack('N*', $this->sendToAddressAndRecv($address, GetClientList::encode(10000, $tmp_prev_fd)))) {
                     foreach ($fd_list as $fd) {
                         if ($start || $fd > $prev_fd) {
                             $start = true;
-                            yield self::addressToClient([
+                            yield $this->addressToClient([
                                 'lan_host' => $address['lan_host'],
                                 'lan_port' => $address['lan_port'],
                                 'fd' => $fd,
@@ -272,11 +279,11 @@ class Api
      * @param string $prev_client 从该客户但开始读取
      * @return iterable
      */
-    public static function getClientListByUid(string $uid, string $prev_client = null): iterable
+    public function getClientListByUid(string $uid, string $prev_client = null): iterable
     {
         $start = $prev_client ? false : true;
         if (!$start) {
-            $tmp = self::clientToAddress($prev_client);
+            $tmp = $this->clientToAddress($prev_client);
             $prev_address = [
                 'lan_host' => $tmp['lan_host'],
                 'lan_port' => $tmp['lan_port'],
@@ -284,13 +291,13 @@ class Api
             $prev_fd = $tmp['fd'];
         }
         $buffer = GetClientListByUid::encode($uid);
-        foreach (self::$address_list as $address) {
+        foreach ($this->getAddressList() as $address) {
             if ($start || $address == $prev_address) {
-                $res = self::sendToAddressAndRecv($address, $buffer);
+                $res = $this->sendToAddressAndRecv($address, $buffer);
                 foreach (unpack('N*', $res) as $fd) {
                     if ($start || $fd > $prev_fd) {
                         $start = true;
-                        yield self::addressToClient([
+                        yield $this->addressToClient([
                             'lan_host' => $address['lan_host'],
                             'lan_port' => $address['lan_port'],
                             'fd' => $fd,
@@ -309,10 +316,10 @@ class Api
      * @param integer $type 具体要获取哪些数据，默认全部获取，也可按需获取，可选参数：Xielei\Swoole\Protocol::CLIENT_INFO_UID(绑定的uid) | Xielei\Swoole\Protocol::CLIENT_INFO_SESSION(session) | Xielei\Swoole\Protocol::CLIENT_INFO_GROUP_LIST(绑定的分组列表) | Xielei\Swoole\Protocol::CLIENT_INFO_REMOTE_IP（客户ip） | Xielei\Swoole\Protocol::CLIENT_INFO_REMOTE_PORT（客户端口） | Xielei\Swoole\Protocol::CLIENT_INFO_SYSTEM（客户系统信息）
      * @return array|null
      */
-    public static function getClientInfo(string $client, int $type = 255): ?array
+    public function getClientInfo(string $client, int $type = 255): ?array
     {
-        $address = self::clientToAddress($client);
-        return GetClientInfo::result(self::sendToAddressAndRecv($address, GetClientInfo::encode($address['fd'], $type)));
+        $address = $this->clientToAddress($client);
+        return GetClientInfo::result($this->sendToAddressAndRecv($address, GetClientInfo::encode($address['fd'], $type)));
     }
 
     /**
@@ -322,12 +329,12 @@ class Api
      * @param boolean $unique 是否过滤重复值 默认过滤，若用户数过多，会占用较大内存，建议根据需要设置
      * @return iterable
      */
-    public static function getUidListByGroup(string $group, bool $unique = true): iterable
+    public function getUidListByGroup(string $group, bool $unique = true): iterable
     {
         $uid_list = [];
         $buffer = GetUidListByGroup::encode($group);
-        foreach (self::$address_list as $address) {
-            $res = self::sendToAddressAndRecv($address, $buffer);
+        foreach ($this->getAddressList() as $address) {
+            $res = $this->sendToAddressAndRecv($address, $buffer);
             while ($res) {
                 $tmp = unpack('Clen', $res);
                 $uid = substr($res, 1, $tmp['len']);
@@ -351,12 +358,12 @@ class Api
      * @param boolean $unique 是否过滤重复值 默认过滤，若用户数过多，会占用较大内存，建议根据需要设置
      * @return iterable
      */
-    public static function getUidList(bool $unique = true): iterable
+    public function getUidList(bool $unique = true): iterable
     {
         $uid_list = [];
         $buffer = GetUidList::encode();
-        foreach (self::$address_list as $address) {
-            $res = self::sendToAddressAndRecv($address, $buffer);
+        foreach ($this->getAddressList() as $address) {
+            $res = $this->sendToAddressAndRecv($address, $buffer);
             while ($res) {
                 $tmp = unpack('Clen', $res);
                 $uid = substr($res, 1, $tmp['len']);
@@ -380,17 +387,17 @@ class Api
      * @param float $unique_percent 唯一百分比，例如：80%。若知道的情况下请尽量填写，这样数据更加准确。
      * @return integer
      */
-    public static function getUidCount(float $unique_percent = null): int
+    public function getUidCount(float $unique_percent = null): int
     {
         $items = [];
         $buffer = GetUidCount::encode($unique_percent ? false : true);
-        foreach (self::$address_list as $key => $address) {
+        foreach ($this->getAddressList() as $key => $address) {
             $items[$key] = [
                 'address' => $address,
                 'buffer' => $buffer,
             ];
         }
-        $buffers = self::sendToAddressListAndRecv($items);
+        $buffers = $this->sendToAddressListAndRecv($items);
 
         $count = 0;
         $uid_list = [];
@@ -425,12 +432,12 @@ class Api
      * @param boolean $unique 是否去除重复数据，默认去除，若分组数据较多（例如百万级别），会占用很大的内存，若能够在业务上处理，请尽量设置为false
      * @return iterable
      */
-    public static function getGroupList(bool $unique = true): iterable
+    public function getGroupList(bool $unique = true): iterable
     {
         $group_list = [];
         $buffer = GetGroupList::encode();
-        foreach (self::$address_list as $key => $address) {
-            $res = self::sendToAddressAndRecv($address, $buffer);
+        foreach ($this->getAddressList() as $key => $address) {
+            $res = $this->sendToAddressAndRecv($address, $buffer);
             while ($res) {
                 $tmp = unpack('Clen', $res);
                 $group = substr($res, 1, $tmp['len']);
@@ -454,9 +461,9 @@ class Api
      * @param string $group 分组名称
      * @return integer
      */
-    public static function getUidCountByGroup(string $group): int
+    public function getUidCountByGroup(string $group): int
     {
-        return count(iterator_to_array(self::getUidListByGroup($group)));
+        return count(iterator_to_array($this->getUidListByGroup($group)));
     }
 
     /**
@@ -466,10 +473,10 @@ class Api
      * @param boolean $force 是否强制关闭，强制关闭会立即关闭客户端，不会等到待发送数据发送完毕就立即关闭
      * @return void
      */
-    public static function closeClient(string $client, bool $force = false)
+    public function closeClient(string $client, bool $force = false)
     {
-        $address = self::clientToAddress($client);
-        self::sendToAddress($address, CloseClient::encode($address['fd'], $force));
+        $address = $this->clientToAddress($client);
+        $this->sendToAddress($address, CloseClient::encode($address['fd'], $force));
     }
 
     /**
@@ -479,10 +486,10 @@ class Api
      * @param string $uid
      * @return void
      */
-    public static function bindUid(string $client, string $uid)
+    public function bindUid(string $client, string $uid)
     {
-        $address = self::clientToAddress($client);
-        self::sendToAddress($address, BindUid::encode($address['fd'], $uid));
+        $address = $this->clientToAddress($client);
+        $this->sendToAddress($address, BindUid::encode($address['fd'], $uid));
     }
 
     /**
@@ -491,10 +498,10 @@ class Api
      * @param string $client
      * @return void
      */
-    public static function unBindUid(string $client)
+    public function unBindUid(string $client)
     {
-        $address = self::clientToAddress($client);
-        self::sendToAddress($address, UnBindUid::encode($address['fd']));
+        $address = $this->clientToAddress($client);
+        $this->sendToAddress($address, UnBindUid::encode($address['fd']));
     }
 
     /**
@@ -504,10 +511,10 @@ class Api
      * @param string $group 分组名称
      * @return void
      */
-    public static function joinGroup(string $client, string $group)
+    public function joinGroup(string $client, string $group)
     {
-        $address = self::clientToAddress($client);
-        self::sendToAddress($address, JoinGroup::encode($address['fd'], $group));
+        $address = $this->clientToAddress($client);
+        $this->sendToAddress($address, JoinGroup::encode($address['fd'], $group));
     }
 
     /**
@@ -517,10 +524,10 @@ class Api
      * @param string $group 指定分组
      * @return void
      */
-    public static function leaveGroup(string $client, string $group)
+    public function leaveGroup(string $client, string $group)
     {
-        $address = self::clientToAddress($client);
-        self::sendToAddress($address, LeaveGroup::encode($address['fd'], $group));
+        $address = $this->clientToAddress($client);
+        $this->sendToAddress($address, LeaveGroup::encode($address['fd'], $group));
     }
 
     /**
@@ -529,11 +536,11 @@ class Api
      * @param string $group 分组名称
      * @return void
      */
-    public static function unGroup(string $group)
+    public function unGroup(string $group)
     {
         $buffer = UnGroup::encode($group);
-        foreach (self::$address_list as $address) {
-            self::sendToAddress($address, $buffer);
+        foreach ($this->getAddressList() as $address) {
+            $this->sendToAddress($address, $buffer);
         }
     }
 
@@ -544,10 +551,10 @@ class Api
      * @param array $session session数据
      * @return void
      */
-    public static function setSession(string $client, array $session)
+    public function setSession(string $client, array $session)
     {
-        $address = self::clientToAddress($client);
-        self::sendToAddress($address, SetSession::encode($address['fd'], $session));
+        $address = $this->clientToAddress($client);
+        $this->sendToAddress($address, SetSession::encode($address['fd'], $session));
     }
 
     /**
@@ -557,10 +564,10 @@ class Api
      * @param array $session
      * @return void
      */
-    public static function updateSession(string $client, array $session)
+    public function updateSession(string $client, array $session)
     {
-        $address = self::clientToAddress($client);
-        self::sendToAddress($address, UpdateSession::encode($address['fd'], $session));
+        $address = $this->clientToAddress($client);
+        $this->sendToAddress($address, UpdateSession::encode($address['fd'], $session));
     }
 
     /**
@@ -569,10 +576,10 @@ class Api
      * @param string $client
      * @return void
      */
-    public static function deleteSession(string $client)
+    public function deleteSession(string $client)
     {
-        $address = self::clientToAddress($client);
-        self::sendToAddress($address, DeleteSession::encode($address['fd']));
+        $address = $this->clientToAddress($client);
+        $this->sendToAddress($address, DeleteSession::encode($address['fd']));
     }
 
     /**
@@ -581,14 +588,68 @@ class Api
      * @param string $client
      * @return array|null
      */
-    public static function getSession(string $client): ?array
+    public function getSession(string $client): ?array
     {
-        $address = self::clientToAddress($client);
-        $buffer = self::sendToAddressAndRecv($address, GetSession::encode($address['fd']));
+        $address = $this->clientToAddress($client);
+        $buffer = $this->sendToAddressAndRecv($address, GetSession::encode($address['fd']));
         return unserialize($buffer);
     }
 
-    // 以下为核心基本方法
+    /**
+     * 根据地址生成客户端编号
+     *
+     * @param array $address
+     * @return string
+     */
+    public function addressToClient(array $address): string
+    {
+        return bin2hex(pack('NnN', ip2long($address['lan_host']), $address['lan_port'], $address['fd']));
+    }
+
+    /**
+     * 根据客户端编号获取客户端通信地址
+     *
+     * @param string $client
+     * @return array
+     */
+    public function clientToAddress(string $client): array
+    {
+        $res = unpack('Nlan_host/nlan_port/Nfd', hex2bin($client));
+        $res['lan_host'] = long2ip($res['lan_host']);
+        return $res;
+    }
+
+    /**
+     * 获取网关地址列表
+     *
+     * @return array
+     */
+    public function getAddressList(): array
+    {
+        static $last_time = 0;
+        static $addresses = [];
+        $now_time = time();
+        if ($now_time - $last_time > 1) {
+            $last_time = $now_time;
+            $client = stream_socket_client('tcp://' . $this->register_host . ':' . $this->register_port, $errno, $errmsg, 5, STREAM_CLIENT_CONNECT | STREAM_CLIENT_PERSISTENT);
+            fwrite($client, Protocol::encode(pack('C', Protocol::WORKER_CONNECT) . $this->register_secret_key));
+            stream_set_timeout($client, 5);
+            $data = unpack('Ccmd/A*load', Protocol::decode(stream_socket_recvfrom($client, 655350)));
+            if ($data['cmd'] !== Protocol::BROADCAST_GATEWAY_LIST) {
+                throw new Exception("get gateway address list failure!");
+            } else {
+                $addresses = [];
+                if ($data['load'] && (strlen($data['load']) % 6 === 0)) {
+                    foreach (str_split($data['load'], 6) as $value) {
+                        $address = unpack('Nlan_host/nlan_port', $value);
+                        $address['lan_host'] = long2ip($address['lan_host']);
+                        $addresses[$address['lan_host'] . ':' . $address['lan_port']] = $address;
+                    }
+                }
+            }
+        }
+        return $addresses;
+    }
 
     /**
      * 向多个地址发送数据并批量接收
@@ -597,16 +658,12 @@ class Api
      * @param float $timeout 超时时间 单位秒
      * @return array
      */
-    public static function sendToAddressListAndRecv(array $items, float $timeout = 1): array
+    public function sendToAddressListAndRecv(array $items, float $timeout = 1): array
     {
-        $barrier = Barrier::make();
         $res = [];
         foreach ($items as $key => $item) {
-            Coroutine::create(function () use ($barrier, $key, $item, $timeout, &$res) {
-                $res[$key] = self::sendToAddressAndRecv($item['address'], $item['buffer'], $timeout);
-            });
+            $res[$key] = $this->sendToAddressAndRecv($item['address'], $item['buffer'], $timeout);
         }
-        Barrier::wait($barrier);
         return $res;
     }
 
@@ -618,9 +675,49 @@ class Api
      * @param float $timeout 超时时间 单位秒
      * @return string
      */
-    public static function sendToAddressAndRecv(array $address, string $buffer, float $timeout = 1): string
+    public function sendToAddressAndRecv(array $address, string $buffer, float $timeout = 1): string
     {
-        return Protocol::decode(self::getConnPool($address['lan_host'], $address['lan_port'])->sendAndRecv(Protocol::encode($buffer), $timeout));
+        $buffer = Protocol::encode($buffer);
+        static $clients = [];
+        $client_key = $address['lan_host'] . ':' . $address['lan_port'];
+        if (!isset($clients[$client_key])) {
+            $client = stream_socket_client("tcp://{$client_key}", $errno, $errmsg, $timeout, STREAM_CLIENT_PERSISTENT | STREAM_CLIENT_CONNECT);
+            if (!$client) {
+                throw new Exception("connect to tcp://{$client_key} failure! errmsg:{$errmsg}");
+            }
+            $clients[$client_key] = $client;
+        }
+
+        if (strlen($buffer) !== stream_socket_sendto($clients[$client_key], $buffer)) {
+            throw new Exception("send to tcp://{$client_key} failure!");
+        }
+
+        stream_set_blocking($clients[$client_key], true);
+        stream_set_timeout($clients[$client_key], 1);
+        $recv_buf = '';
+        $time_start = microtime(true);
+        $pack_len = 0;
+        while (true) {
+            $buf = stream_socket_recvfrom($clients[$client_key], 655350);
+            if ($buf !== '' && $buf !== false) {
+                $recv_buf .= $buf;
+            } else {
+                if (feof($clients[$client_key])) {
+                    throw new Exception("connection closed! tcp://$address");
+                } elseif (microtime(true) - $time_start > $timeout) {
+                    break;
+                }
+                continue;
+            }
+            $recv_len = strlen($recv_buf);
+            if (!$pack_len && $recv_len >= 4) {
+                $pack_len = current(unpack('N', $recv_buf));
+            }
+            if (($pack_len && $recv_len >= $pack_len) || microtime(true) - $time_start > $timeout) {
+                break;
+            }
+        }
+        return Protocol::decode(substr($recv_buf, 0, $pack_len));
     }
 
     /**
@@ -630,29 +727,18 @@ class Api
      * @param string $buffer 数据
      * @return void
      */
-    public static function sendToAddress(array $address, string $buffer)
+    public function sendToAddress(array $address, string $buffer)
     {
-        self::getConnPool($address['lan_host'], $address['lan_port'])->send(Protocol::encode($buffer));
-    }
-
-    public static function getConnPool($host, $port, int $size = 64): ClientPool
-    {
-        static $pools = [];
-        if (!isset($pools[$host . ':' . $port])) {
-            $pools[$host . ':' . $port] = new ClientPool($host, $port, $size);
+        static $clients = [];
+        $client_key = $address['lan_host'] . ':' . $address['lan_port'];
+        if (!isset($clients[$client_key])) {
+            $client = stream_socket_client("tcp://{$client_key}", $errno, $errmsg, 5, STREAM_CLIENT_PERSISTENT | STREAM_CLIENT_CONNECT);
+            if (!$client) {
+                throw new Exception("connect to tcp://{$client_key} failure! errmsg:{$errmsg}");
+            }
+            $clients[$client_key] = $client;
         }
-        return $pools[$host . ':' . $port];
-    }
-
-    public static function addressToClient(array $address): string
-    {
-        return bin2hex(pack('NnN', ip2long($address['lan_host']), $address['lan_port'], $address['fd']));
-    }
-
-    public static function clientToAddress(string $client): array
-    {
-        $res = unpack('Nlan_host/nlan_port/Nfd', hex2bin($client));
-        $res['lan_host'] = long2ip($res['lan_host']);
-        return $res;
+        $buffer = Protocol::encode($buffer);
+        stream_socket_sendto($clients[$client_key], $buffer);
     }
 }

@@ -28,6 +28,8 @@ class CloseClient implements CmdInterface
     public static function execute(Gateway $gateway, Connection $conn, string $buffer)
     {
         $data = self::decode($buffer);
-        $gateway->getServer()->close($data['fd'], $data['force']);
+        if ($gateway->getServer()->exist($data['fd'])) {
+            $gateway->getServer()->close($data['fd'], (bool)$data['force']);
+        }
     }
 }
