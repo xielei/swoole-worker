@@ -21,6 +21,8 @@ class Worker extends Service
     public $register_host = '127.0.0.1';
     public $register_port = 9327;
 
+    public $tag_list = [];
+
     protected $process;
     protected $inner_server;
 
@@ -190,7 +192,7 @@ class Worker extends Service
             $client = new Client($address['lan_host'], $address['lan_port']);
             $client->onConnect = function () use ($client, $address) {
                 Service::debug("connect to gateway {$address['lan_host']}:{$address['lan_port']} 成功");
-                $client->send(Protocol::encode(RegisterWorker::encode(Config::get('tag_list', []))));
+                $client->send(Protocol::encode(RegisterWorker::encode($this->tag_list)));
 
                 $ping_buffer = Protocol::encode(pack('C', Ping::getCommandCode()));
                 $client->timer_id = Timer::tick(30000, function () use ($client, $ping_buffer, $address) {
