@@ -5,40 +5,25 @@ SwooleWorker是基于swoole开发的一款分布式长连接开发框架。常�
  [【官方网站】](http://swoole.plus)
  [【开发文档】](docs/zh-CN)
 
-``` bash
-  _____                    _   __          __        _
- / ____|                  | |  \ \        / /       | |           ®
-| (_____      _____   ___ | | __\ \  /\  / /__  _ __| | _____ _ __
- \___ \ \ /\ / / _ \ / _ \| |/ _ \ \/  \/ / _ \| '__| |/ / _ \ '__|
- ____) \ V  V / (_) | (_) | |  __/\  /\  / (_) | |  |   <  __/ |
-|_____/ \_/\_/ \___/ \___/|_|\___| \/  \/ \___/|_|  |_|\_\___|_|
-
-=================================================
-SwooleWorker is a distributed long connection
-development framework based on Swoole.
-
-[HomePage] https://swoole.plus
-=================================================
-
-Press [Ctrl+C] to exit, send 'help' to show help.
-> help
-****************************  HELP  ****************************
-* cmd                           description...
-* help                          display help
-* exit                          exit cmd panel
-* clear                         clear screen
-* start [-d]                    start the service,'-d' daemonize mode
-* restart [-d]                  restart the service,'-d' daemonize mode
-* reload                        reload worker and task
-* stop [-f]                     stop the service,'-f' force stop
-* status                        displays the running status of the service
-****************************************************************
-> 
-```
-
-## 系统架构
-
 ![架构图](https://static.ebcms.com/img/sw.png)
+
+ ## 适用对象
+ 
+ SwooleWorker是一个长链接框架，适用于需要长期保持连接的服务
+ 
+ 适用于：
+ 
+ * 游戏服务端
+ * 物联网
+ * 车联网
+ * 智能家居
+ * 网络游戏
+ * 移动推送
+ * IM
+
+不适用于：
+
+* 传统web项目
 
 ## 安装
 
