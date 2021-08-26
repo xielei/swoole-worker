@@ -1,6 +1,6 @@
 {
     "name": "xielei/swoole-worker",
-    "description": "SwooleWorker is a distributed long connection development framework based on swoole4. Resident memory, coroutine, high performance and high concurrency; Distributed deployment and horizontal expansion can support a large number of connections; No perception security restart, seamless upgrade code; Interface rich, support single send, packet send, group broadcast interface. It can be widely used in cloud computing, Internet of things (IOT), Internet of vehicles, smart home, online games and other fields.",
+    "description": "SwooleWorker是基于Swoole开发的一款分布式长连接开发框架。常驻内存，协程，高性能高并发；分布式部署，横向扩容，使得能支持庞大的连接数；无感知安全重启，无缝升级代码；接口丰富，支持单个发送，分组发送，群发广播等接口。可广泛应用于云计算、物联网（IOT）、车联网、智能家居、网络游戏等领域。",
     "keywords": [
         "php",
         "swoole"
