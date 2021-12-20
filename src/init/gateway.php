@@ -58,7 +58,9 @@ foreach (['Connect', 'Open', 'Receive', 'Message'] as $event) {
 
         $this->sendToProcess([
             'event' => $event,
-            'args' => json_decode(json_encode($args), true),
+            'args' => array_map(function ($arg) {
+                return (array)$arg;
+            }, $args),
         ]);
     });
 }
@@ -75,7 +77,9 @@ $this->on('Close', function (Server $server, ...$args) {
 
     $this->sendToProcess([
         'event' => 'Close',
-        'args' => json_decode(json_encode($args), true),
+        'args' => array_map(function ($arg) {
+            return (array)$arg;
+        }, $args),
     ]);
 });
 
